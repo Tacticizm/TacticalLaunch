@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TACTICAL LAUNCH">
+  <meta name="theme-color" content="#07080E">
+  <title>TACTICAL LAUNCH</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ═══ CSS VARIABLES ═══ */
+    :root {
+      --bg:     #07080E;
+      --surf:   #0D0E19;
+      --raised: #141526;
+      --frame:  #1C1E32;
+      --lime:   #38BDF8;
+      --tee:    #3B82F6;
+      --grass:  #4ADE80;
+      --orange: #FF5500;
+      --red:    #FF1F3D;
+      --dim:    #252840;
+      --mid:    #4E5275;
+      --text:   #DDE0F5;
+    }
+
+    /* ═══ RESET ═══ */
+    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    * { -webkit-tap-highlight-color: transparent; }
+
+    /* ═══ SCROLLBARS ═══ */
+    .noscroll::-webkit-scrollbar { display: none; }
+    .noscroll { scrollbar-width: none; }
+
+    /* ═══ CLUB CHIPS ═══ */
+    .chip {
+      flex-shrink: 0;
+      transition: background 0.13s, color 0.13s, border-color 0.13s;
+    }
+    .chip.on {
+      background: var(--lime) !important;
+      color: var(--bg) !important;
+      border-color: var(--lime) !important;
+    }
+
+    /* ═══ METRIC PANEL FIELDS ═══ */
+    .mfield {
+      cursor: pointer;
+      padding: 14px 14px 12px;
+      transition: box-shadow 0.13s ease;
+      position: relative;
+    }
+    .mfield.on {
+      box-shadow: inset 0 -3px 0 var(--lime);
+    }
+    .mfield.on .mval { color: var(--lime); }
+    .mval {
+      font-family: 'Roboto Mono', monospace;
+      font-size: clamp(1.75rem, 7vw, 2.25rem);
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text);
+      transition: color 0.13s ease;
+    }
+
+    /* ═══ KEYPAD ═══ */
+    .kb {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      transition: transform 0.07s ease, opacity 0.07s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .kb:active { transform: scale(0.87); opacity: 0.65; }
+
+    /* ═══ TOAST (top center) ═══ */
+    #toast {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-90px);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 9000;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ═══ MODAL ═══ */
+    #modal {
+      position: fixed; inset: 0;
+      background: rgba(7, 8, 14, 0.92);
+      z-index: 500;
+      display: flex;
+      align-items: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    #modal.open { opacity: 1; pointer-events: all; }
+    #msheet {
+      width: 100%;
+      transform: translateY(100%);
+      transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+      background: var(--surf);
+      border-top: 1px solid var(--frame);
+      border-left: 1px solid var(--frame);
+      border-right: 1px solid var(--frame);
+      border-radius: 24px 24px 0 0;
+      padding: 24px 20px;
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    #modal.open #msheet { transform: translateY(0); }
+
+    /* ═══ SHOT FEED ═══ */
+    .shot { animation: sd 0.18s ease; }
+    @keyframes sd {
+      from { opacity:0; transform:translateY(-5px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* ═══ BAR CHART ═══ */
+    .bartrack { height: 3px; border-radius: 99px; background: var(--frame); overflow: hidden; }
+    .barfill   { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+
+    /* ═══ STAT TABS ═══ */
+    .stab { transition: background 0.13s, color 0.13s; }
+
+    /* ═══ LIE BUTTONS ═══ */
+    .liebtn { transition: background 0.13s, color 0.13s, border-color 0.13s; }
+
+    /* ═══ MISC ═══ */
+    .num { font-family: 'Roboto Mono', monospace; }
+    textarea:focus { outline: none; }
+
+    /* Lime gradient rule used in header */
+    .lime-rule {
+      height: 1px;
+      background: linear-gradient(to right, var(--lime) 0%, transparent 70%);
+    }
+
+    /* Glow on LOG SHOT button */
+    #submitBtn {
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.25);
+      transition: box-shadow 0.2s, transform 0.07s;
+    }
+    #submitBtn:active {
+      transform: scale(0.97);
+      box-shadow: 0 0 8px rgba(192, 255, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     TOAST — appears top-center
+════════════════════════════════════════ -->
+<div id="toast">
+  <div id="toast-inner" class="flex items-center gap-2.5 px-4 py-2.5 rounded-full"
+    style="background:var(--raised);border:1px solid var(--frame);">
+    <span id="toast-icon" class="num text-sm" style="color:var(--lime);">✓</span>
+    <span id="toast-msg" class="text-sm font-bold" style="color:var(--text);"></span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     DATA PORTABILITY MODAL
+════════════════════════════════════════ -->
+<div id="modal" onclick="closeModalBg(event)">
+  <div id="msheet">
+    <!-- Handle -->
+    <div class="w-9 h-1 rounded-full mx-auto mb-6" style="background:var(--frame);"></div>
+
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-2">
+        <div class="w-1.5 h-5 rounded-full" style="background:var(--lime);"></div>
+        <h2 class="text-sm font-black tracking-widest" style="color:var(--text);">DATA PORTABILITY</h2>
+      </div>
+      <button onclick="closeModal()"
+        class="kb w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold"
+        style="background:var(--frame);color:var(--mid);">✕</button>
+    </div>
+
+    <!-- EXPORT -->
+    <p class="text-xs font-black tracking-widest mb-1" style="color:var(--lime);">EXPORT</p>
+    <p class="text-xs leading-relaxed mb-4" style="color:var(--mid);">
+      Encodes your entire shot history as a Base64 string and copies it to the clipboard.
+    </p>
+    <button onclick="exportData()"
+      class="kb w-full py-4 rounded-2xl text-sm font-black tracking-widest mb-6"
+      style="background:var(--lime);color:var(--bg);box-shadow:0 0 18px rgba(56,189,248,0.2);">
+      COPY TO CLIPBOARD
+    </button>
+
+    <div class="lime-rule mb-6"></div>
+
+    <!-- IMPORT -->
+    <p class="text-xs font-black tracking-widest mb-1" style="color:var(--orange);">IMPORT</p>
+    <p class="text-xs leading-relaxed mb-3" style="color:var(--mid);">
+      Paste an exported string to restore history.
+      <span style="color:var(--red);">This overwrites all current data.</span>
+    </p>
+    <textarea id="importText" rows="3"
+      class="w-full rounded-2xl p-3 text-xs num mb-3"
+      style="background:var(--bg);border:1px solid var(--frame);color:var(--text);resize:none;"
+      placeholder="Paste exported string here…"></textarea>
+    <button onclick="importData()"
+      class="kb w-full py-4 rounded-2xl text-sm font-black tracking-widest"
+      style="background:transparent;border:1.5px solid var(--orange);color:var(--orange);">
+      IMPORT &amp; OVERWRITE
+    </button>
+    <div style="height:max(env(safe-area-inset-bottom),20px);"></div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     MAIN LAYOUT
+════════════════════════════════════════ -->
+<div style="max-width:480px;margin:0 auto;">
+
+  <!-- ══ STICKY HEADER ══ -->
+  <div class="sticky top-0 z-50 px-4 pt-5 pb-3" style="background:var(--bg);">
+
+    <!-- Title row -->
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2.5">
+        <div class="flex flex-col gap-0.5">
+          <div class="w-1.5 h-1.5 rounded-full" style="background:var(--lime);"></div>
+          <div class="w-1.5 h-1.5 rounded-full" style="background:var(--lime);opacity:0.4;"></div>
+        </div>
+        <div class="leading-none">
+          <span class="text-xl font-black tracking-widest" style="color:var(--text);">TACTICAL</span>
+          <span class="text-xl font-black tracking-widest ml-2" style="color:var(--lime);">LAUNCH</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="editBadge" class="hidden px-2.5 py-1 rounded-lg text-xs font-black tracking-widest"
+          style="background:rgba(255,85,0,0.14);color:var(--orange);border:1px solid rgba(255,85,0,0.3);">
+          EDITING
+        </div>
+        <button onclick="openModal()"
+          class="kb w-9 h-9 rounded-xl flex items-center justify-center"
+          style="background:var(--surf);border:1px solid var(--frame);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="var(--lime)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Lime rule -->
+    <div class="lime-rule mb-3"></div>
+
+    <!-- Club chips -->
+    <div id="clubBar" class="noscroll flex gap-2 overflow-x-auto"></div>
+  </div>
+
+  <!-- ══ METRIC PANEL ══ -->
+  <div class="px-4 pt-2 pb-3">
+    <div class="rounded-2xl overflow-hidden" style="background:var(--surf);border:1px solid var(--frame);">
+
+      <!-- Row 1: CARRY | SPEED | HANG -->
+      <div class="grid grid-cols-3" style="border-bottom:1px solid var(--frame);">
+        <div id="box-carry" class="mfield" onclick="setFocus('carry')">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">CARRY</p>
+          <div id="val-carry" class="mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">YDS</p>
+        </div>
+        <div id="box-speed" class="mfield" onclick="setFocus('speed')"
+          style="border-left:1px solid var(--frame);border-right:1px solid var(--frame);">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">SPEED</p>
+          <div id="val-speed" class="mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">MPH</p>
+        </div>
+        <div id="box-hang" class="mfield" onclick="setFocus('hang')">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">HANG</p>
+          <div id="val-hang" class="mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">SEC</p>
+        </div>
+      </div>
+
+      <!-- Row 2: APEX | CURVE -->
+      <div class="grid grid-cols-2">
+        <div id="box-apex" class="mfield" onclick="setFocus('apex')">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">APEX</p>
+          <div id="val-apex" class="mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">FT</p>
+        </div>
+        <div id="box-curve" class="mfield" onclick="setFocus('curve')"
+          style="border-left:1px solid var(--frame);">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">CURVE</p>
+          <div id="val-curve" class="mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">YDS ± L/R</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ KEYPAD ══ -->
+  <div class="px-4 pb-4">
+
+    <!-- 4-col circle grid -->
+    <div class="grid grid-cols-4 gap-3 mb-4">
+
+      <!-- Row 1: 7 8 9 ⌫ -->
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('7')">7</button>
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('8')">8</button>
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('9')">9</button>
+      <button class="kb rounded-full h-[84px] text-xl font-bold"
+        style="background:var(--surf);color:var(--red);border:1px solid var(--frame);"
+        onclick="kp('back')">⌫</button>
+
+      <!-- Row 2: 4 5 6 − (curve only) -->
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('4')">4</button>
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('5')">5</button>
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('6')">6</button>
+      <button id="minusBtn"
+        class="kb rounded-full h-[84px] text-2xl font-bold"
+        style="background:var(--surf);color:var(--dim);border:1px solid var(--frame);pointer-events:none;"
+        onclick="kp('-')">−</button>
+
+      <!-- Row 3: 1 2 3 . -->
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('1')">1</button>
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('2')">2</button>
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('3')">3</button>
+      <button class="kb rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('.')">.</button>
+
+      <!-- Row 4: 0 wide pill + CLR -->
+      <button class="kb col-span-3 rounded-full h-[84px] text-xl font-bold num"
+        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
+        onclick="kp('0')">0</button>
+      <button class="kb rounded-full h-[84px] text-xs font-black tracking-wider"
+        style="background:var(--surf);color:var(--mid);border:1px solid var(--frame);"
+        onclick="kp('clr')">CLR</button>
+    </div>
+
+    <!-- LIE: two separate pill buttons -->
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <button id="btn-lie-tee"
+        class="liebtn kb rounded-2xl py-4 text-sm font-black tracking-widest"
+        onclick="setLie('tee')"
+        style="background:var(--lime);color:var(--bg);">
+        OFF TEE
+      </button>
+      <button id="btn-lie-grass"
+        class="liebtn kb rounded-2xl py-4 text-sm font-black tracking-widest"
+        onclick="setLie('grass')"
+        style="background:var(--raised);color:var(--mid);border:1.5px solid var(--frame);">
+        OFF GRASS
+      </button>
+    </div>
+
+    <!-- LOG SHOT / UPDATE SHOT -->
+    <button id="submitBtn"
+      class="w-full rounded-2xl py-5 text-base font-black tracking-widest"
+      style="background:var(--lime);color:var(--bg);"
+      onclick="submitShot()">
+      LOG SHOT
+    </button>
+    <button id="cancelBtn"
+      class="hidden kb w-full rounded-2xl py-3 text-sm font-bold tracking-widest mt-2"
+      style="background:transparent;border:1px solid var(--frame);color:var(--mid);"
+      onclick="cancelEdit()">
+      CANCEL EDIT
+    </button>
+  </div>
+
+  <!-- ══ ANALYTICS CARD ══ -->
+  <div class="px-4 pb-4">
+    <div class="rounded-2xl p-4" style="background:var(--surf);border:1px solid var(--frame);">
+
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-1.5 h-4 rounded-full" style="background:var(--lime);opacity:0.6;"></div>
+          <h3 class="text-xs font-black tracking-widest" style="color:var(--text);">ANALYTICS</h3>
+        </div>
+        <span id="analyticsClub" class="text-xs font-black tracking-widest" style="color:var(--lime);">—</span>
+      </div>
+
+      <!-- Lie filter tabs -->
+      <div class="flex gap-2 mb-5">
+        <button id="tab-all" class="stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
+          onclick="setTab('all')"
+          style="background:var(--raised);color:var(--text);">ALL</button>
+        <button id="tab-tee" class="stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
+          onclick="setTab('tee')"
+          style="background:transparent;color:var(--mid);">TEE</button>
+        <button id="tab-grass" class="stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
+          onclick="setTab('grass')"
+          style="background:transparent;color:var(--mid);">GRASS</button>
+      </div>
+
+      <!-- Stats rows (bar chart style) -->
+      <div id="statsGrid" class="space-y-4"></div>
+    </div>
+  </div>
+
+  <!-- ══ RECENT SHOTS FEED ══ -->
+  <div class="px-4 pb-12">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <div class="w-1.5 h-4 rounded-full" style="background:var(--mid);"></div>
+        <h3 class="text-xs font-black tracking-widest" style="color:var(--text);">RECENT SHOTS</h3>
+      </div>
+      <span id="shotCount" class="num text-xs font-bold" style="color:var(--mid);">0 shots</span>
+    </div>
+    <div id="emptyState" class="text-center py-12">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
+        style="background:var(--dim);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="var(--mid)" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <p class="text-sm font-bold" style="color:var(--mid);">No shots logged yet.</p>
+      <p class="text-xs mt-1" style="color:var(--dim);">Select a club above and start tracking.</p>
+    </div>
+    <div id="feed" class="space-y-2"></div>
+  </div>
+
+</div><!-- /main -->
+
+
+<!-- ════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
+<script>
+// ── Constants ─────────────────────────────────────────────
+const CLUBS  = ['Driver','3 Wood','4 Hybrid','5 Iron','6 Iron','7 Iron','8 Iron','9 Iron','PW','GW','SW'];
+const FIELDS = ['carry','speed','hang','apex','curve'];
+const META = {
+  carry: { label:'CARRY', unit:'YDS',  bar:'#34D399' },
+  speed: { label:'SPEED', unit:'MPH',  bar:'#7B6EFF' },
+  hang:  { label:'HANG',  unit:'SEC',  bar:'#FF9900' },
+  apex:  { label:'APEX',  unit:'FT',   bar:'#00D4FF' },
+  curve: { label:'CURVE', unit:'YDS',  bar:'#FF3EA5' },
+};
+const LS = 'tl_v2';
+
+// ── State ──────────────────────────────────────────────────
+const S = {
+  club:'Driver', lie:'tee', focus:'carry', tab:'all',
+  vals:{ carry:'', speed:'', hang:'', apex:'', curve:'' },
+  shots:[], editingId:null,
+};
+
+// ── Boot ───────────────────────────────────────────────────
+(function(){
+  try { S.shots = JSON.parse(localStorage.getItem(LS)||'[]'); } catch(_){}
+  buildClubs(); setFocus('carry'); setLie('tee'); setTab('all'); renderAll();
+})();
+
+// ── Club Bar ───────────────────────────────────────────────
+function buildClubs(){
+  document.getElementById('clubBar').innerHTML = CLUBS.map(c => {
+    const a = c === S.club;
+    return `<button class="chip${a?' on':''} px-4 py-2 rounded-full border text-xs font-black tracking-widest"
+      style="${a
+        ? 'background:var(--lime);color:var(--bg);border-color:var(--lime);'
+        : 'background:var(--surf);color:var(--mid);border-color:var(--frame);'}"
+      onclick="selectClub('${c}')">${c}</button>`;
+  }).join('');
+}
+
+function selectClub(c){
+  S.club = c;
+  buildClubs(); renderStats();
+  document.getElementById('analyticsClub').textContent = c.toUpperCase();
+}
+
+// ── Focus ──────────────────────────────────────────────────
+function setFocus(f){
+  S.focus = f;
+  FIELDS.forEach(k => {
+    document.getElementById(`box-${k}`).classList.toggle('on', k === f);
+  });
+  const mb = document.getElementById('minusBtn');
+  if (f === 'curve') {
+    mb.style.color = 'var(--orange)';
+    mb.style.borderColor = 'rgba(255,85,0,0.4)';
+    mb.style.pointerEvents = 'auto';
+  } else {
+    mb.style.color = 'var(--dim)';
+    mb.style.borderColor = 'var(--frame)';
+    mb.style.pointerEvents = 'none';
+  }
+}
+
+function refreshVal(f){
+  const v = S.vals[f];
+  document.getElementById(`val-${f}`).textContent = v==='' ? '—' : v==='-' ? '−' : v;
+}
+
+// ── Keypad ─────────────────────────────────────────────────
+function kp(key){
+  const f = S.focus;
+  let v = S.vals[f];
+
+  switch(key){
+    case 'back': v = v.slice(0,-1); break;
+    case 'clr':  v = ''; break;
+    case '-':
+      if (f !== 'curve') return;
+      v = v.startsWith('-') ? v.slice(1) : '-' + v;
+      break;
+    case '.':
+      if (v.includes('.')) return;
+      v = (v===''||v==='-') ? v+'0.' : v+'.';
+      break;
+    default: {
+      if (v==='0')  { v = key; break; }
+      if (v==='-0') { v = '-'+key; break; }
+      if (v.replace(/[^\d]/g,'').length >= 5) return;
+      v = v + key;
+    }
+  }
+  S.vals[f] = v;
+  refreshVal(f);
+}
+
+// ── Lie ────────────────────────────────────────────────────
+function setLie(lie){
+  S.lie = lie;
+  const t = document.getElementById('btn-lie-tee');
+  const g = document.getElementById('btn-lie-grass');
+  if (lie === 'tee') {
+    t.style.background='var(--tee)'; t.style.color='#fff'; t.style.border='none';
+    g.style.background='var(--raised)'; g.style.color='var(--mid)'; g.style.border='1.5px solid var(--frame)';
+  } else {
+    g.style.background='var(--grass)'; g.style.color='var(--bg)'; g.style.border='none';
+    t.style.background='var(--raised)'; t.style.color='var(--mid)'; t.style.border='1.5px solid var(--frame)';
+  }
+}
+
+// ── Submit ─────────────────────────────────────────────────
+function submitShot(){
+  const carry = parseFloat(S.vals.carry);
+  const speed = parseFloat(S.vals.speed);
+  if (!S.vals.carry || isNaN(carry)){ toast('Carry distance required','err'); return; }
+  if (!S.vals.speed || isNaN(speed)){ toast('Ball speed required','err'); return; }
+
+  const n = k => (S.vals[k] && S.vals[k]!=='-') ? parseFloat(S.vals[k]) : null;
+
+  const shot = {
+    id:    S.editingId ?? Date.now(),
+    ts:    S.editingId ? (S.shots.find(s=>s.id===S.editingId)?.ts ?? Date.now()) : Date.now(),
+    club:  S.club,
+    lie:   S.lie,
+    carry, speed,
+    hang:  n('hang'),
+    apex:  n('apex'),
+    curve: n('curve'),
+  };
+
+  if (S.editingId !== null){
+    const i = S.shots.findIndex(s => s.id===S.editingId);
+    if (i > -1) S.shots[i] = shot;
+    save(); renderAll(); toast('Shot updated','ok'); cancelEdit();
+  } else {
+    S.shots.unshift(shot);
+    save(); renderAll(); toast('Shot logged','ok'); clearInputs();
+  }
+}
+
+function clearInputs(){
+  FIELDS.forEach(f => { S.vals[f]=''; refreshVal(f); });
+  setFocus('carry');
+}
+
+function editShot(id){
+  const s = S.shots.find(x => x.id===id);
+  if (!s) return;
+  S.editingId = id;
+  S.vals.carry = String(s.carry ?? '');
+  S.vals.speed = String(s.speed ?? '');
+  S.vals.hang  = s.hang  != null ? String(s.hang)  : '';
+  S.vals.apex  = s.apex  != null ? String(s.apex)  : '';
+  S.vals.curve = s.curve != null ? String(s.curve) : '';
+  FIELDS.forEach(f => refreshVal(f));
+  selectClub(s.club); setLie(s.lie); setFocus('carry');
+  document.getElementById('submitBtn').textContent = 'UPDATE SHOT';
+  document.getElementById('cancelBtn').classList.remove('hidden');
+  document.getElementById('editBadge').classList.remove('hidden');
+  renderFeed();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function cancelEdit(){
+  S.editingId = null;
+  clearInputs();
+  document.getElementById('submitBtn').textContent = 'LOG SHOT';
+  document.getElementById('cancelBtn').classList.add('hidden');
+  document.getElementById('editBadge').classList.add('hidden');
+  renderFeed();
+}
+
+function deleteShot(id){
+  S.shots = S.shots.filter(s => s.id !== id);
+  if (S.editingId === id) cancelEdit();
+  save(); renderAll(); toast('Shot deleted','err');
+}
+
+function save(){ localStorage.setItem(LS, JSON.stringify(S.shots)); }
+
+// ── Analytics ──────────────────────────────────────────────
+function setTab(tab){
+  S.tab = tab;
+  ['all','tee','grass'].forEach(t => {
+    const el = document.getElementById(`tab-${t}`);
+    el.style.background = t===tab ? 'var(--raised)' : 'transparent';
+    el.style.color      = t===tab ? 'var(--text)'   : 'var(--mid)';
+  });
+  renderStats();
+}
+
+function filteredShots(){
+  return S.shots.filter(s => {
+    if (s.club !== S.club) return false;
+    if (S.tab==='tee')   return s.lie==='tee';
+    if (S.tab==='grass') return s.lie==='grass';
+    return true;
+  });
+}
+
+function calcStats(shots){
+  const r = {};
+  FIELDS.forEach(f => {
+    const vals = shots.map(s=>s[f]).filter(v => v!=null && !isNaN(v));
+    if (!vals.length){ r[f]=null; return; }
+    const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
+    let best;
+    if (f==='curve'){
+      const ma = Math.max(...vals.map(Math.abs));
+      best = vals.find(v => Math.abs(v)===ma) ?? 0;
+    } else {
+      best = Math.max(...vals);
+    }
+    r[f] = { avg, best, n:vals.length };
+  });
+  return r;
+}
+
+function fmtCMax(v){
+  if (v==null) return '—';
+  if (v>0) return `R ${Math.abs(v).toFixed(1)}`;
+  if (v<0) return `L ${Math.abs(v).toFixed(1)}`;
+  return '0';
+}
+
+function renderStats(){
+  document.getElementById('analyticsClub').textContent = S.club.toUpperCase();
+  const shots = filteredShots();
+  const stats = calcStats(shots);
+  const g = document.getElementById('statsGrid');
+
+  if (!shots.length){
+    const lbl = S.tab==='all'?'all lies':S.tab==='tee'?'off tee':'off grass';
+    g.innerHTML = `<p class="text-sm text-center py-4 font-semibold" style="color:var(--dim);">
+      No ${S.club} (${lbl}) shots yet.</p>`;
+    return;
+  }
+
+  g.innerHTML = FIELDS.map(f => {
+    const m = META[f], s = stats[f], isCrv = f==='curve';
+    if (!s) return `
+      <div class="flex items-center justify-between py-2">
+        <span class="text-xs font-black tracking-widest" style="color:${m.bar};">
+          ${m.label} <span style="color:var(--mid);font-weight:500;">${m.unit}</span>
+        </span>
+        <span class="num text-xs" style="color:var(--dim);">No data</span>
+      </div>`;
+
+    const avgFmt = isCrv ? fmtCMax(s.avg)  : s.avg.toFixed(1);
+    const bstFmt = isCrv ? fmtCMax(s.best) : s.best.toFixed(1);
+
+    // Bar pct: avg as proportion of best
+    const denom = isCrv ? Math.abs(s.best) : s.best;
+    const numer = isCrv ? Math.abs(s.avg)  : s.avg;
+    const pct   = denom !== 0 ? Math.min(100, (numer/denom)*100) : 100;
+
+    return `
+      <div class="py-3 border-b last:border-0" style="border-color:var(--frame);">
+        <div class="flex items-center justify-between mb-2.5">
+          <span class="text-xs font-black tracking-widest" style="color:${m.bar};">
+            ${m.label} <span style="color:var(--mid);font-weight:500;">${m.unit}</span>
+          </span>
+          <span class="num text-xs" style="color:var(--dim);">${s.n} shot${s.n!==1?'s':''}</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-right" style="min-width:42px;">
+            <p class="num text-base font-bold" style="color:var(--text);">${avgFmt}</p>
+            <p class="text-xs font-black tracking-wider" style="color:var(--mid);">AVG</p>
+          </div>
+          <div class="flex-1 bartrack">
+            <div class="barfill" style="width:${pct.toFixed(1)}%;background:${m.bar};opacity:0.85;"></div>
+          </div>
+          <div style="min-width:42px;">
+            <p class="num text-base font-bold" style="color:${m.bar};">${bstFmt}</p>
+            <p class="text-xs font-black tracking-wider" style="color:var(--mid);">${isCrv?'DEV':'BEST'}</p>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Feed ───────────────────────────────────────────────────
+function relTime(ts){
+  const d = Date.now()-ts;
+  if (d<60000)     return 'just now';
+  if (d<3600000)   return `${Math.floor(d/60000)}m ago`;
+  if (d<86400000)  return `${Math.floor(d/3600000)}h ago`;
+  if (d<604800000) return `${Math.floor(d/86400000)}d ago`;
+  return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function fmtCrv(v){
+  if (v==null) return { t:'—',  c:'var(--dim)' };
+  if (v>0)     return { t:`R${Math.abs(v)}`, c:'#5B9EFF' };
+  if (v<0)     return { t:`L${Math.abs(v)}`, c:'#FF9D00' };
+  return { t:'0', c:'var(--text)' };
+}
+
+function renderFeed(){
+  const feed  = document.getElementById('feed');
+  const empty = document.getElementById('emptyState');
+  const cnt   = document.getElementById('shotCount');
+  const n     = S.shots.length;
+  cnt.textContent = `${n} shot${n!==1?'s':''}`;
+
+  if (!n){ feed.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  const noV = `<span style="color:var(--dim);">—</span>`;
+
+  feed.innerHTML = S.shots.map(s => {
+    const ed   = s.id === S.editingId;
+    const cv   = fmtCrv(s.curve);
+    const lie  = s.lie || 'tee';
+    const lieC = lie==='tee' ? 'var(--tee)' : 'var(--grass)';
+    const lieL = lie==='tee' ? 'TEE' : 'GRASS';
+    const lieBg= lie==='tee'
+      ? 'rgba(59,130,246,0.15)' : 'rgba(74,222,128,0.15)';
+
+    return `
+    <div class="shot rounded-2xl overflow-hidden"
+      style="background:var(--surf);border:1px solid ${ed?'var(--orange)':'var(--frame)'};">
+      <!-- Left accent stripe + content -->
+      <div class="flex">
+        <div style="width:3px;flex-shrink:0;background:${lieC};"></div>
+        <div class="flex-1 p-3">
+
+          <!-- Header row -->
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-black" style="color:var(--text);">${s.club}</span>
+              <span class="text-xs font-black px-2 py-0.5 rounded-full tracking-widest"
+                style="background:${lieBg};color:${lieC};">${lieL}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="num text-xs font-bold" style="color:var(--dim);">${relTime(s.ts)}</span>
+              <!-- Edit -->
+              <button onclick="editShot(${s.id})"
+                class="kb w-7 h-7 rounded-xl flex items-center justify-center"
+                style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                  stroke="var(--lime)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              <!-- Delete -->
+              <button onclick="deleteShot(${s.id})"
+                class="kb w-7 h-7 rounded-xl flex items-center justify-center"
+                style="background:rgba(255,31,61,0.08);border:1px solid rgba(255,31,61,0.2);">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
+                  stroke="var(--red)" stroke-width="2.5" stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6"  y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Stats row -->
+          <div class="grid grid-cols-5 gap-1">
+            <div>
+              <p class="text-xs mb-0.5" style="color:var(--dim);">CARRY</p>
+              <p class="num text-sm font-bold" style="color:${s.carry!=null?'var(--text)':'var(--red)'};">${s.carry ?? '?'}</p>
+            </div>
+            <div>
+              <p class="text-xs mb-0.5" style="color:var(--dim);">SPD</p>
+              <p class="num text-sm font-bold" style="color:${s.speed!=null?'var(--text)':'var(--red)'};">${s.speed ?? '?'}</p>
+            </div>
+            <div>
+              <p class="text-xs mb-0.5" style="color:var(--dim);">HANG</p>
+              <p class="num text-sm font-bold">${s.hang!=null ? `<span style="color:var(--text);">${s.hang}</span>` : noV}</p>
+            </div>
+            <div>
+              <p class="text-xs mb-0.5" style="color:var(--dim);">HGT</p>
+              <p class="num text-sm font-bold">${s.apex!=null ? `<span style="color:var(--text);">${s.apex}</span>` : noV}</p>
+            </div>
+            <div>
+              <p class="text-xs mb-0.5" style="color:var(--dim);">CRV</p>
+              <p class="num text-sm font-bold" style="color:${cv.c};">${cv.t}</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render All ─────────────────────────────────────────────
+function renderAll(){
+  buildClubs(); renderStats(); renderFeed();
+  document.getElementById('analyticsClub').textContent = S.club.toUpperCase();
+}
+
+// ── Modal ──────────────────────────────────────────────────
+function openModal()     { document.getElementById('modal').classList.add('open'); }
+function closeModal()    { document.getElementById('modal').classList.remove('open'); }
+function closeModalBg(e){ if (e.target===document.getElementById('modal')) closeModal(); }
+
+function exportData(){
+  if (!S.shots.length){ toast('No shots to export','err'); return; }
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(S.shots))));
+  if (navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(b64)
+      .then(()  => toast(`${S.shots.length} shots copied!`, 'ok'))
+      .catch(()  => fbCopy(b64));
+  } else fbCopy(b64);
+}
+
+function fbCopy(text){
+  const ta = Object.assign(document.createElement('textarea'),
+    { value:text, style:'position:fixed;opacity:0;top:0;left:0;' });
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch(_){}
+  document.body.removeChild(ta);
+  toast('Copied to clipboard!','ok');
+}
+
+// Coerce any shot object — from any version — into a clean, consistent shape.
+function normalizeShot(s){
+  const n = v => {
+    const f = parseFloat(v);
+    return (!isNaN(f) && v != null) ? f : null;
+  };
+  return {
+    id:    s.id    ?? Date.now(),
+    ts:    s.ts    ?? Date.now(),
+    club:  s.club  || 'Driver',
+    lie:   s.lie   || 'tee',
+    // try current field name, then common legacy aliases
+    carry: n(s.carry  ?? s.distance ?? s.carryDistance ?? s.yards),
+    speed: n(s.speed  ?? s.ballSpeed ?? s.mph ?? s.velocity),
+    hang:  n(s.hang   ?? s.hangTime  ?? s.airTime),
+    apex:  n(s.apex   ?? s.height    ?? s.peakHeight ?? s.maxHeight),
+    curve: n(s.curve  ?? s.deviation ?? s.lateral),
+  };
+}
+
+function importData(){
+  const raw = (document.getElementById('importText').value||'').trim();
+  if (!raw){ toast('Paste an export string first','err'); return; }
+  try {
+    const parsed = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    if (!Array.isArray(parsed)) throw 0;
+    S.shots = parsed.map(normalizeShot);
+    save();
+    if (S.editingId !== null) cancelEdit(); else renderAll();
+    renderAll();
+    document.getElementById('importText').value = '';
+    toast(`Imported ${S.shots.length} shots`,'ok');
+    closeModal();
+  } catch(_){ toast('Invalid import string','err'); }
+}
+
+// ── Toast ──────────────────────────────────────────────────
+let _tt;
+function toast(msg, type){
+  clearTimeout(_tt);
+  document.getElementById('toast-msg').textContent = msg;
+  const icon  = document.getElementById('toast-icon');
+  const inner = document.getElementById('toast-inner');
+  if (type==='err'){
+    icon.textContent  = '✕'; icon.style.color  = 'var(--red)';
+    inner.style.borderColor = 'rgba(255,31,61,0.4)';
+  } else {
+    icon.textContent  = '✓'; icon.style.color  = 'var(--lime)';
+    inner.style.borderColor = 'rgba(192,255,0,0.35)';
+  }
+  document.getElementById('toast').classList.add('show');
+  _tt = setTimeout(() => document.getElementById('toast').classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
