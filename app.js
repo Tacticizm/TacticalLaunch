@@ -643,8 +643,8 @@ function classic_renderFeed(){
     const ul_dist =unitLabel('dist');
     const ul_speed=unitLabel('speed');
     return `
-    <div class="shot-anim flex flex-col py-3 space-y-1 ${ed?'px-2 rounded-xl -mx-1':''}
-      " style="${ed?'background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.2);':''}">
+    <div class="shot-anim flex flex-col py-3 space-y-1 ${ed?'px-2 rounded-xl -mx-1':''}"
+      style="${ed?'background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.2);':''}">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-2">
           <span class="c-tech text-xs font-bold text-white rounded-md px-2 py-0.5 text-center"
