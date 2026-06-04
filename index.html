@@ -9,253 +9,276 @@
   <meta name="theme-color" content="#07080E">
   <title>TACTICAL LAUNCH</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* ═══ CSS VARIABLES ═══ */
-    :root {
-      --bg:     #07080E;
-      --surf:   #0D0E19;
-      --raised: #141526;
-      --frame:  #1C1E32;
-      --lime:   #38BDF8;
-      --tee:    #3B82F6;
-      --grass:  #4ADE80;
-      --orange: #FF5500;
-      --red:    #FF1F3D;
-      --dim:    #252840;
-      --mid:    #4E5275;
-      --text:   #DDE0F5;
-    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    * { -webkit-tap-highlight-color:transparent; }
+    html { overscroll-behavior:none; }
+    body { overscroll-behavior:none; -webkit-overflow-scrolling:touch; }
 
-    /* ═══ RESET ═══ */
-    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-    html, body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', sans-serif;
-      overscroll-behavior: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    * { -webkit-tap-highlight-color: transparent; }
+    /* ── Scrollbar hide ── */
+    .noscroll::-webkit-scrollbar { display:none; }
+    .noscroll { scrollbar-width:none; }
 
-    /* ═══ SCROLLBARS ═══ */
-    .noscroll::-webkit-scrollbar { display: none; }
-    .noscroll { scrollbar-width: none; }
+    /* ── Shared animation ── */
+    @keyframes sd { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+    .shot-anim { animation: sd 0.18s ease; }
 
-    /* ═══ CLUB CHIPS ═══ */
-    .chip {
-      flex-shrink: 0;
-      transition: background 0.13s, color 0.13s, border-color 0.13s;
-    }
-    .chip.on {
-      background: var(--lime) !important;
-      color: var(--bg) !important;
-      border-color: var(--lime) !important;
-    }
-
-    /* ═══ METRIC PANEL FIELDS ═══ */
-    .mfield {
-      cursor: pointer;
-      padding: 14px 14px 12px;
-      transition: box-shadow 0.13s ease;
-      position: relative;
-    }
-    .mfield.on {
-      box-shadow: inset 0 -3px 0 var(--lime);
-    }
-    .mfield.on .mval { color: var(--lime); }
-    .mval {
-      font-family: 'Roboto Mono', monospace;
-      font-size: clamp(1.75rem, 7vw, 2.25rem);
-      font-weight: 700;
-      line-height: 1;
-      color: var(--text);
-      transition: color 0.13s ease;
-    }
-
-    /* ═══ KEYPAD ═══ */
-    .kb {
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: manipulation;
-      transition: transform 0.07s ease, opacity 0.07s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .kb:active { transform: scale(0.87); opacity: 0.65; }
-
-    /* ═══ TOAST (top center) ═══ */
+    /* ── TOAST ── */
     #toast {
-      position: fixed;
-      top: 18px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-90px);
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      z-index: 9000;
+      position:fixed; top:18px; left:50%;
+      transform:translateX(-50%) translateY(-90px);
+      transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      z-index:9000;
     }
-    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.show { transform:translateX(-50%) translateY(0); }
 
-    /* ═══ MODAL ═══ */
-    #modal {
-      position: fixed; inset: 0;
-      background: rgba(7, 8, 14, 0.92);
-      z-index: 500;
-      display: flex;
-      align-items: flex-end;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
+    /* ── SHARED MODAL BASE ── */
+    .modal-ov {
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.88);
+      z-index:600;
+      display:flex; align-items:flex-end;
+      opacity:0; pointer-events:none;
+      transition:opacity 0.2s;
     }
-    #modal.open { opacity: 1; pointer-events: all; }
-    #msheet {
-      width: 100%;
-      transform: translateY(100%);
-      transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1);
-      background: var(--surf);
-      border-top: 1px solid var(--frame);
-      border-left: 1px solid var(--frame);
-      border-right: 1px solid var(--frame);
-      border-radius: 24px 24px 0 0;
-      padding: 24px 20px;
-      max-height: 88vh;
-      overflow-y: auto;
+    .modal-ov.open { opacity:1; pointer-events:all; }
+    .modal-sheet {
+      width:100%;
+      transform:translateY(100%);
+      transition:transform 0.26s cubic-bezier(0.32,0.72,0,1);
+      background:#0D0E19; border-top:1px solid #1C1E32;
+      border-left:1px solid #1C1E32; border-right:1px solid #1C1E32;
+      border-radius:24px 24px 0 0; padding:24px 20px;
+      max-height:88vh; overflow-y:auto;
     }
-    #modal.open #msheet { transform: translateY(0); }
+    .modal-ov.open .modal-sheet { transform:translateY(0); }
 
-    /* ═══ SHOT FEED ═══ */
-    .shot { animation: sd 0.18s ease; }
-    @keyframes sd {
-      from { opacity:0; transform:translateY(-5px); }
-      to   { opacity:1; transform:translateY(0); }
+    /* centered modals (delete, theme picker) */
+    .modal-center { align-items:center; justify-content:center; }
+    .modal-center .modal-sheet {
+      width:auto; max-width:340px; border-radius:20px;
+      border:1px solid #1C1E32;
+      transform:scale(0.92);
+      transition:transform 0.2s ease;
     }
+    .modal-ov.open.modal-center .modal-sheet { transform:scale(1); }
 
-    /* ═══ BAR CHART ═══ */
-    .bartrack { height: 3px; border-radius: 99px; background: var(--frame); overflow: hidden; }
-    .barfill   { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
-
-    /* ═══ STAT TABS ═══ */
-    .stab { transition: background 0.13s, color 0.13s; }
-
-    /* ═══ LIE BUTTONS ═══ */
-    .liebtn { transition: background 0.13s, color 0.13s, border-color 0.13s; }
-
-    /* ═══ MISC ═══ */
-    .num { font-family: 'Roboto Mono', monospace; }
-    textarea:focus { outline: none; }
-
-    /* Lime gradient rule used in header */
-    .lime-rule {
-      height: 1px;
-      background: linear-gradient(to right, var(--lime) 0%, transparent 70%);
+    /* ══════════════════════════════════════
+       ORBITAL THEME
+    ══════════════════════════════════════ */
+    #theme-orbital {
+      background:#07080E; color:#DDE0F5;
+      font-family:'Inter',sans-serif;
+      min-height:100dvh;
     }
+    .o-num { font-family:'Roboto Mono',monospace; }
+    .o-chip { flex-shrink:0; transition:all 0.13s; }
+    .o-chip.on { background:#38BDF8!important; color:#07080E!important; border-color:#38BDF8!important; }
 
-    /* Glow on LOG SHOT button */
-    #submitBtn {
-      box-shadow: 0 0 22px rgba(56, 189, 248, 0.25);
-      transition: box-shadow 0.2s, transform 0.07s;
+    .o-mfield { cursor:pointer; padding:14px 14px 12px; transition:box-shadow 0.13s; }
+    .o-mfield.on { box-shadow:inset 0 -3px 0 #38BDF8; }
+    .o-mfield.on .o-mval { color:#38BDF8; }
+    .o-mval {
+      font-family:'Roboto Mono',monospace;
+      font-size:clamp(1.75rem,7vw,2.25rem);
+      font-weight:700; line-height:1; color:#DDE0F5;
+      transition:color 0.13s;
     }
-    #submitBtn:active {
-      transform: scale(0.97);
-      box-shadow: 0 0 8px rgba(192, 255, 0, 0.1);
+    .o-kb {
+      user-select:none; -webkit-user-select:none;
+      touch-action:manipulation;
+      transition:transform 0.07s, opacity 0.07s;
+      display:flex; align-items:center; justify-content:center;
     }
+    .o-kb:active { transform:scale(0.87); opacity:0.65; }
+    .o-liebtn { transition:background 0.13s, color 0.13s, border-color 0.13s; }
+    .o-stab   { transition:background 0.13s, color 0.13s; }
+    .o-bartrack { height:3px; border-radius:99px; background:#1C1E32; overflow:hidden; }
+    .o-barfill  { height:100%; border-radius:99px; transition:width 0.5s ease; }
+    .o-lime-rule { height:1px; background:linear-gradient(to right,#38BDF8,transparent); }
+    #o-submitBtn {
+      box-shadow:0 0 22px rgba(56,189,248,0.25);
+      transition:box-shadow 0.2s, transform 0.07s;
+    }
+    #o-submitBtn:active { transform:scale(0.97); }
+
+    /* ══════════════════════════════════════
+       CLASSIC THEME
+    ══════════════════════════════════════ */
+    #theme-classic {
+      background:#121214; color:#E4E4E7;
+      font-family:'Inter',sans-serif;
+      min-height:100dvh;
+    }
+    .c-tech { font-family:'Space Grotesk',sans-serif; }
+    .c-num  { font-family:'Roboto Mono',monospace; }
+    .c-kb {
+      user-select:none; -webkit-user-select:none;
+      touch-action:manipulation;
+      transition:background 0.1s, transform 0.07s;
+    }
+    .c-kb:active { transform:scale(0.93); }
+    .c-mbox { transition:border-color 0.15s; }
+
+    textarea:focus { outline:none; }
   </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════
-     TOAST — appears top-center
-════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════
+     TOAST
+═══════════════════════════════════════════ -->
 <div id="toast">
-  <div id="toast-inner" class="flex items-center gap-2.5 px-4 py-2.5 rounded-full"
-    style="background:var(--raised);border:1px solid var(--frame);">
-    <span id="toast-icon" class="num text-sm" style="color:var(--lime);">✓</span>
-    <span id="toast-msg" class="text-sm font-bold" style="color:var(--text);"></span>
+  <div id="toast-inner" class="flex items-center gap-2.5 px-4 py-2.5 rounded-full shadow-xl"
+    style="background:#141526;border:1px solid #1C1E32;">
+    <span id="toast-icon" class="o-num text-sm" style="color:#38BDF8;">✓</span>
+    <span id="toast-msg"  class="text-sm font-bold text-white"></span>
   </div>
 </div>
 
-<!-- ════════════════════════════════════════
-     DATA PORTABILITY MODAL
-════════════════════════════════════════ -->
-<div id="modal" onclick="closeModalBg(event)">
-  <div id="msheet">
-    <!-- Handle -->
-    <div class="w-9 h-1 rounded-full mx-auto mb-6" style="background:var(--frame);"></div>
-
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-2">
-        <div class="w-1.5 h-5 rounded-full" style="background:var(--lime);"></div>
-        <h2 class="text-sm font-black tracking-widest" style="color:var(--text);">DATA PORTABILITY</h2>
-      </div>
-      <button onclick="closeModal()"
-        class="kb w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold"
-        style="background:var(--frame);color:var(--mid);">✕</button>
+<!-- ═══════════════════════════════════════════
+     DELETE CONFIRMATION MODAL (shared)
+═══════════════════════════════════════════ -->
+<div id="deleteModal" class="modal-ov modal-center" onclick="closeDeleteModalBg(event)">
+  <div class="modal-sheet text-center">
+    <div class="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3"
+      style="background:rgba(255,31,61,0.12);">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF1F3D"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
     </div>
+    <h3 class="text-base font-black tracking-widest text-white mb-1">DELETE SHOT?</h3>
+    <p class="text-xs mb-5 leading-relaxed" style="color:#4E5275;">This cannot be undone. The log will be permanently removed.</p>
+    <div class="flex gap-3">
+      <button onclick="closeDeleteModal()"
+        class="flex-1 py-3 rounded-xl text-sm font-black tracking-widest"
+        style="background:#1C1E32;color:#4E5275;">CANCEL</button>
+      <button onclick="confirmDelete()"
+        class="flex-1 py-3 rounded-xl text-sm font-black tracking-widest"
+        style="background:#FF1F3D;color:#fff;box-shadow:0 4px 14px rgba(255,31,61,0.3);">DELETE</button>
+    </div>
+  </div>
+</div>
 
-    <!-- EXPORT -->
-    <p class="text-xs font-black tracking-widest mb-1" style="color:var(--lime);">EXPORT</p>
-    <p class="text-xs leading-relaxed mb-4" style="color:var(--mid);">
-      Encodes your entire shot history as a Base64 string and copies it to the clipboard.
+<!-- ═══════════════════════════════════════════
+     DATA PORTABILITY MODAL (shared)
+═══════════════════════════════════════════ -->
+<div id="dataModal" class="modal-ov" onclick="closeDataModalBg(event)">
+  <div class="modal-sheet">
+    <div class="w-9 h-1 rounded-full mx-auto mb-5" style="background:#1C1E32;"></div>
+    <div class="flex items-center justify-between mb-5">
+      <div class="flex items-center gap-2">
+        <div class="w-1.5 h-5 rounded-full" style="background:#38BDF8;"></div>
+        <h2 class="text-sm font-black tracking-widest text-white">DATA PORTABILITY</h2>
+      </div>
+      <button onclick="closeDataModal()"
+        class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold"
+        style="background:#1C1E32;color:#4E5275;">✕</button>
+    </div>
+    <p class="text-xs font-black tracking-widest mb-1" style="color:#38BDF8;">EXPORT</p>
+    <p class="text-xs leading-relaxed mb-4" style="color:#4E5275;">
+      Encodes all shot history as a portable Base64 string and copies it to the clipboard.
     </p>
     <button onclick="exportData()"
-      class="kb w-full py-4 rounded-2xl text-sm font-black tracking-widest mb-6"
-      style="background:var(--lime);color:var(--bg);box-shadow:0 0 18px rgba(56,189,248,0.2);">
+      class="o-kb w-full py-4 rounded-2xl text-sm font-black tracking-widest mb-5"
+      style="background:#38BDF8;color:#07080E;box-shadow:0 0 18px rgba(56,189,248,0.2);">
       COPY TO CLIPBOARD
     </button>
-
-    <div class="lime-rule mb-6"></div>
-
-    <!-- IMPORT -->
-    <p class="text-xs font-black tracking-widest mb-1" style="color:var(--orange);">IMPORT</p>
-    <p class="text-xs leading-relaxed mb-3" style="color:var(--mid);">
+    <div class="mb-5" style="height:1px;background:linear-gradient(to right,#38BDF8,transparent);"></div>
+    <p class="text-xs font-black tracking-widest mb-1" style="color:#FF5500;">IMPORT</p>
+    <p class="text-xs leading-relaxed mb-3" style="color:#4E5275;">
       Paste an exported string to restore history.
-      <span style="color:var(--red);">This overwrites all current data.</span>
+      <span style="color:#FF1F3D;">Overwrites current data.</span>
     </p>
     <textarea id="importText" rows="3"
-      class="w-full rounded-2xl p-3 text-xs num mb-3"
-      style="background:var(--bg);border:1px solid var(--frame);color:var(--text);resize:none;"
+      class="w-full rounded-2xl p-3 text-xs o-num mb-3"
+      style="background:#07080E;border:1px solid #1C1E32;color:#DDE0F5;resize:none;"
       placeholder="Paste exported string here…"></textarea>
     <button onclick="importData()"
-      class="kb w-full py-4 rounded-2xl text-sm font-black tracking-widest"
-      style="background:transparent;border:1.5px solid var(--orange);color:var(--orange);">
+      class="o-kb w-full py-4 rounded-2xl text-sm font-black tracking-widest"
+      style="background:transparent;border:1.5px solid #FF5500;color:#FF5500;">
       IMPORT &amp; OVERWRITE
     </button>
     <div style="height:max(env(safe-area-inset-bottom),20px);"></div>
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════
+     THEME PICKER MODAL (shared)
+═══════════════════════════════════════════ -->
+<div id="themeModal" class="modal-ov modal-center" onclick="closeThemeModalBg(event)">
+  <div class="modal-sheet p-6">
+    <h2 class="text-sm font-black tracking-widest text-white mb-1">SELECT THEME</h2>
+    <p class="text-xs mb-4" style="color:#4E5275;">Tap a theme to switch instantly. All data is shared.</p>
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Orbital -->
+      <button id="theme-opt-orbital" onclick="switchTheme('orbital')"
+        class="rounded-xl p-4 text-left border-2 transition"
+        style="background:#07080E;border-color:#38BDF8;">
+        <div class="flex gap-1.5 mb-3">
+          <div class="w-3 h-3 rounded-full" style="background:#38BDF8;"></div>
+          <div class="w-3 h-3 rounded-full" style="background:#3B82F6;"></div>
+          <div class="w-3 h-3 rounded-full" style="background:#4ADE80;"></div>
+        </div>
+        <p class="text-xs font-black tracking-widest" style="color:#38BDF8;">ORBITAL</p>
+        <p class="text-xs mt-1 leading-relaxed" style="color:#4E5275;">Circular keys · Bar charts</p>
+      </button>
+      <!-- Classic -->
+      <button id="theme-opt-classic" onclick="switchTheme('classic')"
+        class="rounded-xl p-4 text-left border-2 transition"
+        style="background:#1E1E22;border-color:#2D2D34;">
+        <div class="flex gap-1.5 mb-3">
+          <div class="w-3 h-3 rounded-full" style="background:#10B981;"></div>
+          <div class="w-3 h-3 rounded-full" style="background:#6366F1;"></div>
+          <div class="w-3 h-3 rounded-full" style="background:#EF4444;"></div>
+        </div>
+        <p class="text-xs font-black tracking-widest" style="color:#10B981;">CLASSIC</p>
+        <p class="text-xs mt-1 leading-relaxed" style="color:#6B7280;">Standard keys · Stat table</p>
+      </button>
+    </div>
+  </div>
+</div>
 
-<!-- ════════════════════════════════════════
-     MAIN LAYOUT
-════════════════════════════════════════ -->
+
+<!-- ═══════════════════════════════════════════════════════
+     ██████  ORBITAL THEME
+═══════════════════════════════════════════════════════ -->
+<div id="theme-orbital">
 <div style="max-width:480px;margin:0 auto;">
 
-  <!-- ══ STICKY HEADER ══ -->
-  <div class="sticky top-0 z-50 px-4 pt-5 pb-3" style="background:var(--bg);">
-
-    <!-- Title row -->
+  <!-- Header -->
+  <div class="sticky top-0 z-50 px-4 pt-5 pb-3" style="background:#07080E;">
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2.5">
         <div class="flex flex-col gap-0.5">
-          <div class="w-1.5 h-1.5 rounded-full" style="background:var(--lime);"></div>
-          <div class="w-1.5 h-1.5 rounded-full" style="background:var(--lime);opacity:0.4;"></div>
+          <div class="w-1.5 h-1.5 rounded-full" style="background:#38BDF8;"></div>
+          <div class="w-1.5 h-1.5 rounded-full" style="background:#38BDF8;opacity:0.4;"></div>
         </div>
-        <div class="leading-none">
-          <span class="text-xl font-black tracking-widest" style="color:var(--text);">TACTICAL</span>
-          <span class="text-xl font-black tracking-widest ml-2" style="color:var(--lime);">LAUNCH</span>
+        <div class="leading-none select-none">
+          <span class="text-xl font-black tracking-widest text-white">TACTICAL</span>
+          <span class="text-xl font-black tracking-widest ml-2" style="color:#38BDF8;">LAUNCH</span>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <div id="editBadge" class="hidden px-2.5 py-1 rounded-lg text-xs font-black tracking-widest"
-          style="background:rgba(255,85,0,0.14);color:var(--orange);border:1px solid rgba(255,85,0,0.3);">
-          EDITING
-        </div>
-        <button onclick="openModal()"
-          class="kb w-9 h-9 rounded-xl flex items-center justify-center"
-          style="background:var(--surf);border:1px solid var(--frame);">
+        <div id="o-editBadge" class="hidden px-2.5 py-1 rounded-lg text-xs font-black tracking-widest"
+          style="background:rgba(255,85,0,0.14);color:#FF5500;border:1px solid rgba(255,85,0,0.3);">EDITING</div>
+        <button onclick="openThemeModal()" class="o-kb w-9 h-9 rounded-xl flex items-center justify-center border"
+          style="background:#0D0E19;border-color:#1C1E32;" title="Themes">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4E5275"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </button>
+        <button onclick="openDataModal()" class="o-kb w-9 h-9 rounded-xl flex items-center justify-center border"
+          style="background:#0D0E19;border-color:#1C1E32;" title="Data Portability">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="var(--lime)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            stroke="#38BDF8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
@@ -263,337 +286,688 @@
         </button>
       </div>
     </div>
-
-    <!-- Lime rule -->
-    <div class="lime-rule mb-3"></div>
-
-    <!-- Club chips -->
-    <div id="clubBar" class="noscroll flex gap-2 overflow-x-auto"></div>
+    <div class="o-lime-rule mb-3"></div>
+    <div id="o-clubBar" class="noscroll flex gap-2 overflow-x-auto"></div>
   </div>
 
-  <!-- ══ METRIC PANEL ══ -->
+  <!-- Metric Panel -->
   <div class="px-4 pt-2 pb-3">
-    <div class="rounded-2xl overflow-hidden" style="background:var(--surf);border:1px solid var(--frame);">
-
-      <!-- Row 1: CARRY | SPEED | HANG -->
-      <div class="grid grid-cols-3" style="border-bottom:1px solid var(--frame);">
-        <div id="box-carry" class="mfield" onclick="setFocus('carry')">
-          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">CARRY</p>
-          <div id="val-carry" class="mval">—</div>
-          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">YDS</p>
+    <div class="rounded-2xl overflow-hidden" style="background:#0D0E19;border:1px solid #1C1E32;">
+      <div class="grid grid-cols-3" style="border-bottom:1px solid #1C1E32;">
+        <div id="o-box-carry" class="o-mfield" onclick="setFocus('carry')">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:#4E5275;">CARRY</p>
+          <div id="o-val-carry" class="o-mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:#252840;" id="o-unit-carry">YDS</p>
         </div>
-        <div id="box-speed" class="mfield" onclick="setFocus('speed')"
-          style="border-left:1px solid var(--frame);border-right:1px solid var(--frame);">
-          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">SPEED</p>
-          <div id="val-speed" class="mval">—</div>
-          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">MPH</p>
+        <div id="o-box-speed" class="o-mfield" onclick="setFocus('speed')"
+          style="border-left:1px solid #1C1E32;border-right:1px solid #1C1E32;">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:#4E5275;">SPEED</p>
+          <div id="o-val-speed" class="o-mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:#252840;" id="o-unit-speed">MPH</p>
         </div>
-        <div id="box-hang" class="mfield" onclick="setFocus('hang')">
-          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">HANG</p>
-          <div id="val-hang" class="mval">—</div>
-          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">SEC</p>
+        <div id="o-box-hang" class="o-mfield" onclick="setFocus('hang')">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:#4E5275;">HANG</p>
+          <div id="o-val-hang" class="o-mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:#252840;">SEC</p>
         </div>
       </div>
-
-      <!-- Row 2: APEX | CURVE -->
       <div class="grid grid-cols-2">
-        <div id="box-apex" class="mfield" onclick="setFocus('apex')">
-          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">APEX</p>
-          <div id="val-apex" class="mval">—</div>
-          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">FT</p>
+        <div id="o-box-apex" class="o-mfield" onclick="setFocus('apex')">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:#4E5275;">APEX</p>
+          <div id="o-val-apex" class="o-mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:#252840;" id="o-unit-apex">FT</p>
         </div>
-        <div id="box-curve" class="mfield" onclick="setFocus('curve')"
-          style="border-left:1px solid var(--frame);">
-          <p class="text-xs font-black tracking-widest mb-3" style="color:var(--mid);">CURVE</p>
-          <div id="val-curve" class="mval">—</div>
-          <p class="text-xs mt-2 font-bold" style="color:var(--dim);">YDS ± L/R</p>
+        <div id="o-box-curve" class="o-mfield" onclick="setFocus('curve')"
+          style="border-left:1px solid #1C1E32;">
+          <p class="text-xs font-black tracking-widest mb-3" style="color:#4E5275;">CURVE</p>
+          <div id="o-val-curve" class="o-mval">—</div>
+          <p class="text-xs mt-2 font-bold" style="color:#252840;" id="o-unit-curve">YDS ± L/R</p>
         </div>
       </div>
-
     </div>
   </div>
 
-  <!-- ══ KEYPAD ══ -->
+  <!-- Circular Keypad -->
   <div class="px-4 pb-4">
-
-    <!-- 4-col circle grid -->
     <div class="grid grid-cols-4 gap-3 mb-4">
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('7')">7</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('8')">8</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('9')">9</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold border"
+        style="background:#0D0E19;color:#FF1F3D;border-color:#1C1E32;" onclick="kp('back')">⌫</button>
 
-      <!-- Row 1: 7 8 9 ⌫ -->
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('7')">7</button>
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('8')">8</button>
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('9')">9</button>
-      <button class="kb rounded-full h-[84px] text-xl font-bold"
-        style="background:var(--surf);color:var(--red);border:1px solid var(--frame);"
-        onclick="kp('back')">⌫</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('4')">4</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('5')">5</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('6')">6</button>
+      <button id="o-minusBtn" class="o-kb rounded-full h-[84px] text-2xl font-bold border"
+        style="background:#0D0E19;color:#252840;border-color:#1C1E32;pointer-events:none;" onclick="kp('-')">−</button>
 
-      <!-- Row 2: 4 5 6 − (curve only) -->
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('4')">4</button>
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('5')">5</button>
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('6')">6</button>
-      <button id="minusBtn"
-        class="kb rounded-full h-[84px] text-2xl font-bold"
-        style="background:var(--surf);color:var(--dim);border:1px solid var(--frame);pointer-events:none;"
-        onclick="kp('-')">−</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('1')">1</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('2')">2</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('3')">3</button>
+      <button class="o-kb rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('.')">.</button>
 
-      <!-- Row 3: 1 2 3 . -->
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('1')">1</button>
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('2')">2</button>
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('3')">3</button>
-      <button class="kb rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('.')">.</button>
-
-      <!-- Row 4: 0 wide pill + CLR -->
-      <button class="kb col-span-3 rounded-full h-[84px] text-xl font-bold num"
-        style="background:var(--surf);color:var(--text);border:1px solid var(--frame);"
-        onclick="kp('0')">0</button>
-      <button class="kb rounded-full h-[84px] text-xs font-black tracking-wider"
-        style="background:var(--surf);color:var(--mid);border:1px solid var(--frame);"
-        onclick="kp('clr')">CLR</button>
+      <button class="o-kb col-span-3 rounded-full h-[84px] text-xl font-bold o-num border"
+        style="background:#0D0E19;color:#DDE0F5;border-color:#1C1E32;" onclick="kp('0')">0</button>
+      <button class="o-kb rounded-full h-[84px] text-xs font-black tracking-wider border"
+        style="background:#0D0E19;color:#4E5275;border-color:#1C1E32;" onclick="kp('clr')">CLR</button>
     </div>
 
-    <!-- LIE: two separate pill buttons -->
+    <!-- Lie -->
     <div class="grid grid-cols-2 gap-3 mb-3">
-      <button id="btn-lie-tee"
-        class="liebtn kb rounded-2xl py-4 text-sm font-black tracking-widest"
-        onclick="setLie('tee')"
-        style="background:var(--lime);color:var(--bg);">
-        OFF TEE
-      </button>
-      <button id="btn-lie-grass"
-        class="liebtn kb rounded-2xl py-4 text-sm font-black tracking-widest"
-        onclick="setLie('grass')"
-        style="background:var(--raised);color:var(--mid);border:1.5px solid var(--frame);">
-        OFF GRASS
-      </button>
+      <button id="o-btn-lie-tee" class="o-liebtn o-kb rounded-2xl py-4 text-sm font-black tracking-widest"
+        onclick="setLie('tee')" style="background:#3B82F6;color:#fff;">OFF TEE</button>
+      <button id="o-btn-lie-grass" class="o-liebtn o-kb rounded-2xl py-4 text-sm font-black tracking-widest"
+        onclick="setLie('grass')" style="background:#141526;color:#4E5275;border:1.5px solid #1C1E32;">OFF GRASS</button>
     </div>
 
-    <!-- LOG SHOT / UPDATE SHOT -->
-    <button id="submitBtn"
-      class="w-full rounded-2xl py-5 text-base font-black tracking-widest"
-      style="background:var(--lime);color:var(--bg);"
-      onclick="submitShot()">
-      LOG SHOT
-    </button>
-    <button id="cancelBtn"
-      class="hidden kb w-full rounded-2xl py-3 text-sm font-bold tracking-widest mt-2"
-      style="background:transparent;border:1px solid var(--frame);color:var(--mid);"
-      onclick="cancelEdit()">
-      CANCEL EDIT
-    </button>
+    <!-- Submit -->
+    <button id="o-submitBtn" class="w-full rounded-2xl py-5 text-base font-black tracking-widest"
+      style="background:#38BDF8;color:#07080E;" onclick="submitShot()">LOG SHOT</button>
+    <button id="o-cancelBtn" class="hidden o-kb w-full rounded-2xl py-3 text-sm font-bold tracking-widest mt-2"
+      style="background:transparent;border:1px solid #1C1E32;color:#4E5275;" onclick="cancelEdit()">CANCEL EDIT</button>
   </div>
 
-  <!-- ══ ANALYTICS CARD ══ -->
+  <!-- Analytics -->
   <div class="px-4 pb-4">
-    <div class="rounded-2xl p-4" style="background:var(--surf);border:1px solid var(--frame);">
-
+    <div class="rounded-2xl p-4" style="background:#0D0E19;border:1px solid #1C1E32;">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
-          <div class="w-1.5 h-4 rounded-full" style="background:var(--lime);opacity:0.6;"></div>
-          <h3 class="text-xs font-black tracking-widest" style="color:var(--text);">ANALYTICS</h3>
+          <div class="w-1.5 h-4 rounded-full" style="background:#38BDF8;opacity:0.6;"></div>
+          <h3 class="text-xs font-black tracking-widest text-white">ANALYTICS</h3>
         </div>
-        <span id="analyticsClub" class="text-xs font-black tracking-widest" style="color:var(--lime);">—</span>
+        <div class="flex items-center gap-2">
+          <button id="o-unitToggle" onclick="toggleUnits()"
+            class="text-xs font-black tracking-widest px-2 py-1 rounded-lg border"
+            style="background:rgba(56,189,248,0.1);border-color:rgba(56,189,248,0.25);color:#38BDF8;">US</button>
+          <span id="o-analyticsClub" class="text-xs font-black tracking-widest" style="color:#38BDF8;">—</span>
+        </div>
       </div>
-
-      <!-- Lie filter tabs -->
       <div class="flex gap-2 mb-5">
-        <button id="tab-all" class="stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
-          onclick="setTab('all')"
-          style="background:var(--raised);color:var(--text);">ALL</button>
-        <button id="tab-tee" class="stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
-          onclick="setTab('tee')"
-          style="background:transparent;color:var(--mid);">TEE</button>
-        <button id="tab-grass" class="stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
-          onclick="setTab('grass')"
-          style="background:transparent;color:var(--mid);">GRASS</button>
+        <button id="o-tab-all" class="o-stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
+          onclick="setTab('all')" style="background:#141526;color:#fff;">ALL</button>
+        <button id="o-tab-tee" class="o-stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
+          onclick="setTab('tee')" style="background:transparent;color:#4E5275;">TEE</button>
+        <button id="o-tab-grass" class="o-stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
+          onclick="setTab('grass')" style="background:transparent;color:#4E5275;">GRASS</button>
       </div>
-
-      <!-- Stats rows (bar chart style) -->
-      <div id="statsGrid" class="space-y-4"></div>
+      <div id="o-statsGrid" class="space-y-4"></div>
     </div>
   </div>
 
-  <!-- ══ RECENT SHOTS FEED ══ -->
+  <!-- Feed -->
   <div class="px-4 pb-12">
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2">
-        <div class="w-1.5 h-4 rounded-full" style="background:var(--mid);"></div>
-        <h3 class="text-xs font-black tracking-widest" style="color:var(--text);">RECENT SHOTS</h3>
+        <div class="w-1.5 h-4 rounded-full" style="background:#4E5275;"></div>
+        <h3 class="text-xs font-black tracking-widest text-white">RECENT SHOTS</h3>
       </div>
-      <span id="shotCount" class="num text-xs font-bold" style="color:var(--mid);">0 shots</span>
+      <span id="o-shotCount" class="o-num text-xs font-bold" style="color:#4E5275;">0 shots</span>
     </div>
-    <div id="emptyState" class="text-center py-12">
-      <div class="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
-        style="background:var(--dim);">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-          stroke="var(--mid)" stroke-width="1.8" stroke-linecap="round">
+    <div id="o-emptyState" class="text-center py-12">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3" style="background:#1C1E32;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4E5275"
+          stroke-width="1.8" stroke-linecap="round">
           <circle cx="12" cy="12" r="10"/>
           <line x1="12" y1="8" x2="12" y2="12"/>
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
       </div>
-      <p class="text-sm font-bold" style="color:var(--mid);">No shots logged yet.</p>
-      <p class="text-xs mt-1" style="color:var(--dim);">Select a club above and start tracking.</p>
+      <p class="text-sm font-bold" style="color:#4E5275;">No shots logged yet.</p>
+      <p class="text-xs mt-1" style="color:#1C1E32;">Select a club above and start tracking.</p>
     </div>
-    <div id="feed" class="space-y-2"></div>
+    <div id="o-feed" class="space-y-2"></div>
   </div>
 
-</div><!-- /main -->
+</div>
+</div><!-- /theme-orbital -->
 
 
-<!-- ════════════════════════════════════════
+<!-- ═══════════════════════════════════════════════════════
+     ██████  CLASSIC THEME
+═══════════════════════════════════════════════════════ -->
+<div id="theme-classic" class="hidden">
+<div style="max-width:480px;margin:0 auto;">
+
+  <!-- Header -->
+  <div class="sticky top-0 z-50 px-4 pt-4 pb-3" style="background:#121214;border-bottom:1px solid #2D2D34;">
+    <div class="flex justify-between items-center mb-3">
+      <h1 class="c-tech text-xl font-bold tracking-tighter text-white select-none">
+        TACTICAL<span style="color:#10B981;">LAUNCH</span>
+      </h1>
+      <div class="flex items-center gap-2">
+        <div id="c-editBadge" class="hidden px-2 py-1 rounded-lg text-xs c-tech font-bold tracking-widest"
+          style="background:rgba(99,102,241,0.15);color:#6366F1;border:1px solid rgba(99,102,241,0.3);">EDITING</div>
+        <button onclick="openThemeModal()" class="c-kb p-2 rounded-xl border flex items-center justify-center"
+          style="background:#1E1E22;border-color:#2D2D34;" title="Themes">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </button>
+        <button onclick="openDataModal()" class="c-kb p-2 rounded-xl border flex items-center justify-center"
+          style="background:#1E1E22;border-color:#2D2D34;" title="Data Portability">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E4E4E7"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div id="c-clubBar" class="noscroll flex gap-2 overflow-x-auto py-1"></div>
+  </div>
+
+  <!-- Main scroll area -->
+  <div class="px-4 py-4 space-y-3">
+
+    <!-- Metric Boxes Row 1 -->
+    <div class="grid grid-cols-3 gap-2">
+      <div id="c-box-carry" onclick="setFocus('carry')"
+        class="c-mbox bg-[#1E1E22] border-2 rounded-xl p-2.5 flex flex-col justify-between cursor-pointer"
+        style="border-color:#6366F1;height:80px;">
+        <span id="c-lbl-carry" class="c-tech font-bold uppercase truncate" style="font-size:9px;letter-spacing:.1em;color:#6366F1;">Carry Dist</span>
+        <div class="flex items-baseline justify-between">
+          <span id="c-val-carry" class="c-tech text-2xl font-bold text-white tracking-tight">0</span>
+          <span id="c-unit-carry" class="c-tech font-bold ml-0.5" style="font-size:10px;color:rgba(228,228,231,.4);">YDS</span>
+        </div>
+      </div>
+      <div id="c-box-speed" onclick="setFocus('speed')"
+        class="c-mbox bg-[#1E1E22] border-2 border-transparent rounded-xl p-2.5 flex flex-col justify-between cursor-pointer"
+        style="height:80px;">
+        <span id="c-lbl-speed" class="c-tech font-bold uppercase truncate" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.4);">Ball Speed</span>
+        <div class="flex items-baseline justify-between">
+          <span id="c-val-speed" class="c-tech text-2xl font-bold text-white tracking-tight">0</span>
+          <span id="c-unit-speed" class="c-tech font-bold ml-0.5" style="font-size:10px;color:rgba(228,228,231,.4);">MPH</span>
+        </div>
+      </div>
+      <div id="c-box-hang" onclick="setFocus('hang')"
+        class="c-mbox bg-[#1E1E22] border-2 border-transparent rounded-xl p-2.5 flex flex-col justify-between cursor-pointer"
+        style="height:80px;">
+        <span class="c-tech font-bold uppercase truncate" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.4);">Hang Time</span>
+        <div class="flex items-baseline justify-between">
+          <span id="c-val-hang" class="c-tech text-2xl font-bold text-white tracking-tight">0</span>
+          <span class="c-tech font-bold ml-0.5" style="font-size:10px;color:rgba(228,228,231,.4);">SEC</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metric Boxes Row 2 -->
+    <div class="grid grid-cols-2 gap-2">
+      <div id="c-box-apex" onclick="setFocus('apex')"
+        class="c-mbox bg-[#1E1E22] border-2 border-transparent rounded-xl p-2.5 flex flex-col justify-between cursor-pointer"
+        style="height:64px;">
+        <span id="c-lbl-apex" class="c-tech font-bold uppercase" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.4);">Apex Height</span>
+        <div class="flex items-baseline justify-between">
+          <span id="c-val-apex" class="c-tech text-xl font-bold text-white">0</span>
+          <span id="c-unit-apex" class="c-tech font-bold ml-0.5" style="font-size:10px;color:rgba(228,228,231,.4);">FT</span>
+        </div>
+      </div>
+      <div id="c-box-curve" onclick="setFocus('curve')"
+        class="c-mbox bg-[#1E1E22] border-2 border-transparent rounded-xl p-2.5 flex flex-col justify-between cursor-pointer"
+        style="height:64px;">
+        <span class="c-tech font-bold uppercase" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.4);">Curve (L−/R+)</span>
+        <div class="flex items-baseline justify-between">
+          <span id="c-val-curve" class="c-tech text-xl font-bold text-white">0</span>
+          <span id="c-unit-curve" class="c-tech font-bold ml-0.5" style="font-size:10px;color:rgba(228,228,231,.4);">YDS</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Classic Keypad Card -->
+    <div class="rounded-2xl p-4" style="background:#1E1E22;border:1px solid #2D2D34;">
+      <div class="flex justify-between items-end mb-3 px-1">
+        <span class="c-tech font-bold uppercase tracking-widest" style="font-size:10px;color:rgba(228,228,231,.3);">Data Entry</span>
+        <button onclick="kp('back')" class="c-kb p-1.5 rounded-lg flex items-center justify-center"
+          style="color:rgba(239,68,68,.6);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+            <line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/>
+          </svg>
+        </button>
+      </div>
+      <!-- 3-col grid: 1-9, then −, 0, . -->
+      <div class="grid grid-cols-3 gap-2">
+        <button onclick="kp('1')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">1</button>
+        <button onclick="kp('2')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">2</button>
+        <button onclick="kp('3')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">3</button>
+        <button onclick="kp('4')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">4</button>
+        <button onclick="kp('5')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">5</button>
+        <button onclick="kp('6')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">6</button>
+        <button onclick="kp('7')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">7</button>
+        <button onclick="kp('8')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">8</button>
+        <button onclick="kp('9')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">9</button>
+        <button id="c-minusBtn" onclick="kp('-')"
+          class="c-kb bg-[#121214] c-tech text-xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40"
+          style="color:rgba(228,228,231,.3);pointer-events:none;">−</button>
+        <button onclick="kp('0')" class="c-kb bg-[#121214] text-white c-tech text-2xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">0</button>
+        <button onclick="kp('.')" class="c-kb bg-[#121214] text-white c-tech text-xl font-bold py-3.5 rounded-xl border border-[#2D2D34]/40">.</button>
+      </div>
+
+      <!-- Lie toggle -->
+      <div class="grid grid-cols-2 gap-2 mt-4 pt-3" style="border-top:1px solid rgba(45,45,52,.5);">
+        <button id="c-btn-lie-tee" onclick="setLie('tee')"
+          class="c-kb c-tech text-xs font-bold tracking-widest py-3 rounded-xl border"
+          style="border-color:#3B82F6;background:rgba(59,130,246,.1);color:#3B82F6;">Off Tee</button>
+        <button id="c-btn-lie-grass" onclick="setLie('grass')"
+          class="c-kb c-tech text-xs font-bold tracking-widest py-3 rounded-xl border"
+          style="border-color:#2D2D34;background:#121214;color:rgba(228,228,231,.6);">Off Grass</button>
+      </div>
+
+      <!-- Submit -->
+      <div class="flex gap-2 mt-3">
+        <button id="c-cancelBtn" onclick="cancelEdit()"
+          class="hidden c-kb c-tech text-sm font-bold tracking-widest py-4 rounded-xl"
+          style="width:33%;background:#2D2D34;color:rgba(228,228,231,.7);">Cancel</button>
+        <button id="c-submitBtn" onclick="submitShot()"
+          class="c-kb c-tech text-sm font-bold tracking-widest py-4 rounded-xl"
+          style="flex:1;background:#10B981;color:#121214;box-shadow:0 4px 12px rgba(16,185,129,.15);">Log Shot</button>
+      </div>
+    </div>
+
+    <!-- Analytics Card -->
+    <div class="rounded-2xl p-4" style="background:#1E1E22;border:1px solid #2D2D34;">
+      <div class="flex justify-between items-center pb-2" style="border-bottom:1px solid #2D2D34;">
+        <div class="flex items-center gap-2">
+          <span id="c-statsHeading" class="c-tech text-xs tracking-wider font-bold uppercase" style="color:rgba(228,228,231,.6);">DRIVER PERFORMANCE</span>
+          <span id="c-shotBadge" class="c-tech font-bold rounded-full px-2 py-0.5" style="font-size:10px;background:#2D2D34;color:#10B981;">0 SHOTS</span>
+        </div>
+        <button id="c-unitToggle" onclick="toggleUnits()"
+          class="c-kb c-tech font-bold rounded border uppercase tracking-widest px-2 py-1"
+          style="font-size:9px;background:rgba(99,102,241,.1);color:#6366F1;border-color:rgba(99,102,241,.2);">VIEW: US</button>
+      </div>
+      <div class="grid grid-cols-3 p-1 rounded-xl mt-3 mb-3" style="background:#121214;border:1px solid rgba(45,45,52,.6);">
+        <button id="c-tab-all" onclick="setTab('all')"
+          class="c-kb c-tech font-bold py-1.5 rounded-lg text-center uppercase tracking-wide"
+          style="font-size:10px;background:#2D2D34;color:#10B981;">All</button>
+        <button id="c-tab-tee" onclick="setTab('tee')"
+          class="c-kb c-tech font-bold py-1.5 rounded-lg text-center uppercase tracking-wide"
+          style="font-size:10px;color:rgba(228,228,231,.5);">Tee</button>
+        <button id="c-tab-grass" onclick="setTab('grass')"
+          class="c-kb c-tech font-bold py-1.5 rounded-lg text-center uppercase tracking-wide"
+          style="font-size:10px;color:rgba(228,228,231,.5);">Grass</button>
+      </div>
+      <div id="c-statsGrid" class="space-y-3"></div>
+    </div>
+
+    <!-- History Feed -->
+    <div class="rounded-2xl p-4 pb-10" style="background:#1E1E22;border:1px solid #2D2D34;">
+      <div class="flex items-center justify-between pb-2 mb-1" style="border-bottom:1px solid #2D2D34;">
+        <h4 class="c-tech text-xs tracking-wider font-bold uppercase" style="color:rgba(228,228,231,.6);">Recent Logs</h4>
+        <span id="c-shotCount" class="c-num text-xs" style="color:rgba(228,228,231,.4);"></span>
+      </div>
+      <div id="c-shotList" class="divide-y" style="border-color:rgba(45,45,52,.5);max-height:420px;overflow-y:auto;" class="noscroll"></div>
+    </div>
+
+  </div><!-- /scroll area -->
+</div>
+</div><!-- /theme-classic -->
+
+
+<!-- ═══════════════════════════════════════════
      JAVASCRIPT
-════════════════════════════════════════ -->
+═══════════════════════════════════════════ -->
 <script>
-// ── Constants ─────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────
 const CLUBS  = ['Driver','3 Wood','4 Hybrid','5 Iron','6 Iron','7 Iron','8 Iron','9 Iron','PW','GW','SW'];
 const FIELDS = ['carry','speed','hang','apex','curve'];
 const META = {
-  carry: { label:'CARRY', unit:'YDS',  bar:'#34D399' },
-  speed: { label:'SPEED', unit:'MPH',  bar:'#7B6EFF' },
-  hang:  { label:'HANG',  unit:'SEC',  bar:'#FF9900' },
-  apex:  { label:'APEX',  unit:'FT',   bar:'#00D4FF' },
-  curve: { label:'CURVE', unit:'YDS',  bar:'#FF3EA5' },
+  carry: { label:'Carry Distance', unit:'dist',   bar:'#34D399' },
+  speed: { label:'Ball Speed',     unit:'speed',  bar:'#7B6EFF' },
+  hang:  { label:'Hang Time',      unit:'hang',   bar:'#F59E0B' },
+  apex:  { label:'Apex Height',    unit:'height', bar:'#06B6D4' },
+  curve: { label:'Curve',          unit:'curve',  bar:'#FF3EA5', isCurve:true },
 };
-const LS = 'tl_v2';
+const LS_SHOTS = 'tl_v2';
+const LS_THEME = 'tl_theme';
+const LS_UNITS = 'tl_units';
 
-// ── State ──────────────────────────────────────────────────
+// ─── State ────────────────────────────────────────────────────
 const S = {
   club:'Driver', lie:'tee', focus:'carry', tab:'all',
   vals:{ carry:'', speed:'', hang:'', apex:'', curve:'' },
   shots:[], editingId:null,
+  theme:'orbital', metric:false, pendingDelete:null,
 };
 
-// ── Boot ───────────────────────────────────────────────────
-(function(){
-  try { S.shots = JSON.parse(localStorage.getItem(LS)||'[]'); } catch(_){}
-  buildClubs(); setFocus('carry'); setLie('tee'); setTab('all'); renderAll();
+// ─── Boot ─────────────────────────────────────────────────────
+(function boot(){
+  migrateAndLoad();
+  S.theme  = localStorage.getItem(LS_THEME) || 'orbital';
+  S.metric = localStorage.getItem(LS_UNITS) === '1';
+  applyTheme(S.theme, false);
+  setFocus('carry'); setLie('tee'); setTab('all');
+  renderAll();
 })();
 
-// ── Club Bar ───────────────────────────────────────────────
+// ─── Migration + Normalization ────────────────────────────────
+function migrateAndLoad(){
+  let shots = [];
+  const seen = new Set();
+
+  // Current key
+  try {
+    const a = JSON.parse(localStorage.getItem('tl_v2') || '[]');
+    if (Array.isArray(a)) a.forEach(s => { if (!seen.has(s.id)){ seen.add(s.id); shots.push(s); }});
+  } catch(_){}
+
+  // Gemini key
+  try {
+    const b = JSON.parse(localStorage.getItem('tactical_launch_history') || '[]');
+    if (Array.isArray(b)) b.forEach(s => { if (!seen.has(s.id)){ seen.add(s.id); shots.push(s); }});
+  } catch(_){}
+
+  S.shots = shots.map(normalizeShot).sort((a,b) => b.ts - a.ts);
+  localStorage.setItem(LS_SHOTS, JSON.stringify(S.shots));
+}
+
+function normalizeShot(s){
+  const n = v => { const f = parseFloat(v); return (!isNaN(f) && v != null) ? f : null; };
+
+  // Club: hyphens → spaces, validate
+  let club = (s.club || 'Driver').replace(/-/g, ' ');
+  if (!CLUBS.includes(club)){
+    const m = CLUBS.find(c => c.toLowerCase() === club.toLowerCase());
+    club = m || 'Driver';
+  }
+
+  // Timestamp
+  let ts = s.ts;
+  if (!ts || isNaN(ts)){
+    if (s.timestamp){ const p = new Date(s.timestamp).getTime(); ts = isNaN(p) ? Date.now() : p; }
+    else { ts = s.id || Date.now(); }
+  }
+
+  return {
+    id:    s.id ?? Date.now(),
+    ts:    Number(ts),
+    club,
+    lie:   s.lie   || 'tee',
+    carry: n(s.carry  ?? s.distance    ?? s.carryDistance ?? s.yards),
+    speed: n(s.speed  ?? s.ballSpeed   ?? s.mph           ?? s.velocity),
+    hang:  n(s.hang   ?? s.hangtime    ?? s.hangTime      ?? s.airTime),
+    apex:  n(s.apex   ?? s.height      ?? s.peakHeight    ?? s.maxHeight),
+    curve: n(s.curve  ?? s.deviation   ?? s.lateral),
+  };
+}
+
+function save(){ localStorage.setItem(LS_SHOTS, JSON.stringify(S.shots)); }
+
+// ─── Unit Conversion ──────────────────────────────────────────
+function applyUnit(val, type){
+  if (!S.metric) return val;
+  if (type==='dist'||type==='curve') return val * 0.9144;
+  if (type==='speed')  return val * 1.60934;
+  if (type==='height') return val * 0.3048;
+  return val;
+}
+function unitLabel(type){
+  if (!S.metric){
+    if (type==='dist'||type==='curve') return 'YDS';
+    if (type==='speed')  return 'MPH';
+    if (type==='height') return 'FT';
+    if (type==='hang')   return 'SEC';
+  } else {
+    if (type==='dist'||type==='curve') return 'M';
+    if (type==='speed')  return 'KPH';
+    if (type==='height') return 'M';
+    if (type==='hang')   return 'SEC';
+  }
+  return '';
+}
+function dispVal(val, type){
+  if (val == null || isNaN(val)) return '--';
+  return applyUnit(val, type).toFixed(1);
+}
+function fmtCurveMax(v, type){
+  if (v == null) return '--';
+  const abs = applyUnit(Math.abs(v), type||'curve').toFixed(1);
+  return v>0 ? `R ${abs}` : v<0 ? `L ${abs}` : '0';
+}
+
+function toggleUnits(){
+  S.metric = !S.metric;
+  localStorage.setItem(LS_UNITS, S.metric ? '1' : '0');
+  updateUnitToggleUI();
+  updateMetricUnitLabels();
+  renderStats(); renderFeed();
+}
+function updateUnitToggleUI(){
+  const label = S.metric ? 'METRIC' : 'US';
+  const oBtn = document.getElementById('o-unitToggle');
+  const cBtn = document.getElementById('c-unitToggle');
+  if (oBtn) oBtn.textContent = label;
+  if (cBtn){
+    cBtn.textContent = 'VIEW: ' + label;
+    cBtn.style.background = S.metric ? 'rgba(16,185,129,.1)'  : 'rgba(99,102,241,.1)';
+    cBtn.style.color       = S.metric ? '#10B981'              : '#6366F1';
+    cBtn.style.borderColor = S.metric ? 'rgba(16,185,129,.2)' : 'rgba(99,102,241,.2)';
+  }
+}
+function updateMetricUnitLabels(){
+  // Orbital unit labels under metric boxes
+  const o = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
+  o('o-unit-carry', unitLabel('dist'));
+  o('o-unit-speed', unitLabel('speed'));
+  o('o-unit-apex',  unitLabel('height'));
+  o('o-unit-curve', unitLabel('curve') + ' ± L/R');
+  // Classic unit labels
+  o('c-unit-carry', unitLabel('dist'));
+  o('c-unit-speed', unitLabel('speed'));
+  o('c-unit-apex',  unitLabel('height'));
+  o('c-unit-curve', unitLabel('curve'));
+}
+
+// ─── Theme System ─────────────────────────────────────────────
+function applyTheme(name, rerender=true){
+  S.theme = name;
+  localStorage.setItem(LS_THEME, name);
+  document.getElementById('theme-orbital').classList.toggle('hidden', name !== 'orbital');
+  document.getElementById('theme-classic').classList.toggle('hidden', name !== 'classic');
+  // Update theme picker button borders
+  const oOpt = document.getElementById('theme-opt-orbital');
+  const cOpt = document.getElementById('theme-opt-classic');
+  if(oOpt) oOpt.style.borderColor = name==='orbital' ? '#38BDF8' : '#1C1E32';
+  if(cOpt) cOpt.style.borderColor = name==='classic' ? '#10B981' : '#2D2D34';
+  if (rerender) renderAll();
+}
+function switchTheme(name){ applyTheme(name); closeThemeModal(); }
+
+// ─── Club Selector ────────────────────────────────────────────
 function buildClubs(){
-  document.getElementById('clubBar').innerHTML = CLUBS.map(c => {
-    const a = c === S.club;
-    return `<button class="chip${a?' on':''} px-4 py-2 rounded-full border text-xs font-black tracking-widest"
+  orbital_buildClubs(); classic_buildClubs();
+}
+function selectClub(c){
+  S.club = c; buildClubs(); renderStats();
+  const oa = document.getElementById('o-analyticsClub');
+  if (oa) oa.textContent = c.toUpperCase();
+  document.getElementById('c-statsHeading').textContent = c.toUpperCase() + ' PERFORMANCE';
+}
+
+function orbital_buildClubs(){
+  const bar = document.getElementById('o-clubBar');
+  if (!bar) return;
+  bar.innerHTML = CLUBS.map(c => {
+    const a = c===S.club;
+    return `<button class="o-chip${a?' on':''} px-4 py-2 rounded-full border text-xs font-black tracking-wider"
       style="${a
-        ? 'background:var(--lime);color:var(--bg);border-color:var(--lime);'
-        : 'background:var(--surf);color:var(--mid);border-color:var(--frame);'}"
+        ? 'background:#38BDF8;color:#07080E;border-color:#38BDF8;'
+        : 'background:#0D0E19;color:#4E5275;border-color:#1C1E32;'}"
       onclick="selectClub('${c}')">${c}</button>`;
   }).join('');
 }
-
-function selectClub(c){
-  S.club = c;
-  buildClubs(); renderStats();
-  document.getElementById('analyticsClub').textContent = c.toUpperCase();
+function classic_buildClubs(){
+  const bar = document.getElementById('c-clubBar');
+  if (!bar) return;
+  bar.innerHTML = CLUBS.map(c => {
+    const a = c===S.club;
+    return `<button class="c-kb c-tech shrink-0 text-xs font-bold tracking-wider px-4 py-2.5 rounded-xl border transition"
+      style="${a
+        ? 'background:#10B981;color:#121214;border-color:#10B981;box-shadow:0 2px 8px rgba(16,185,129,.15);'
+        : 'background:#1E1E22;color:rgba(228,228,231,.7);border-color:#2D2D34;'}"
+      onclick="selectClub('${c}')">${c.toUpperCase()}</button>`;
+  }).join('');
 }
 
-// ── Focus ──────────────────────────────────────────────────
+// ─── Focus ────────────────────────────────────────────────────
 function setFocus(f){
   S.focus = f;
+  orbital_applyFocus(f); classic_applyFocus(f);
+}
+function orbital_applyFocus(f){
   FIELDS.forEach(k => {
-    document.getElementById(`box-${k}`).classList.toggle('on', k === f);
+    const el = document.getElementById(`o-box-${k}`);
+    if (el) el.classList.toggle('on', k===f);
   });
-  const mb = document.getElementById('minusBtn');
-  if (f === 'curve') {
-    mb.style.color = 'var(--orange)';
-    mb.style.borderColor = 'rgba(255,85,0,0.4)';
-    mb.style.pointerEvents = 'auto';
-  } else {
-    mb.style.color = 'var(--dim)';
-    mb.style.borderColor = 'var(--frame)';
-    mb.style.pointerEvents = 'none';
+  const mb = document.getElementById('o-minusBtn');
+  if (mb){
+    mb.style.color = f==='curve' ? '#FF5500' : '#252840';
+    mb.style.borderColor = f==='curve' ? 'rgba(255,85,0,.35)' : '#1C1E32';
+    mb.style.pointerEvents = f==='curve' ? 'auto' : 'none';
+  }
+}
+function classic_applyFocus(f){
+  FIELDS.forEach(k => {
+    const el = document.getElementById(`c-box-${k}`);
+    if (!el) return;
+    const lbl = el.querySelector('[id^="c-lbl-"]') || el.querySelector('span');
+    if (k===f){
+      el.style.borderColor = '#6366F1';
+      if (lbl) lbl.style.color = '#6366F1';
+    } else {
+      el.style.borderColor = 'transparent';
+      if (lbl) lbl.style.color = 'rgba(228,228,231,.4)';
+    }
+  });
+  const mb = document.getElementById('c-minusBtn');
+  if (mb){
+    mb.style.color = f==='curve' ? '#6366F1' : 'rgba(228,228,231,.3)';
+    mb.style.pointerEvents = f==='curve' ? 'auto' : 'none';
   }
 }
 
+// ─── Display refresh ──────────────────────────────────────────
 function refreshVal(f){
   const v = S.vals[f];
-  document.getElementById(`val-${f}`).textContent = v==='' ? '—' : v==='-' ? '−' : v;
+  // Orbital: show — when empty
+  const oel = document.getElementById(`o-val-${f}`);
+  if (oel) oel.textContent = v==='' ? '—' : v==='-' ? '−' : v;
+  // Classic: show 0 when empty
+  const cel = document.getElementById(`c-val-${f}`);
+  if (cel) cel.textContent = v || '0';
 }
 
-// ── Keypad ─────────────────────────────────────────────────
+// ─── Keypad ───────────────────────────────────────────────────
 function kp(key){
-  const f = S.focus;
-  let v = S.vals[f];
-
+  const f = S.focus; let v = S.vals[f];
   switch(key){
     case 'back': v = v.slice(0,-1); break;
     case 'clr':  v = ''; break;
     case '-':
-      if (f !== 'curve') return;
-      v = v.startsWith('-') ? v.slice(1) : '-' + v;
+      if (f!=='curve') return;
+      v = v.startsWith('-') ? v.slice(1) : '-'+v;
       break;
     case '.':
       if (v.includes('.')) return;
       v = (v===''||v==='-') ? v+'0.' : v+'.';
       break;
-    default: {
-      if (v==='0')  { v = key; break; }
-      if (v==='-0') { v = '-'+key; break; }
-      if (v.replace(/[^\d]/g,'').length >= 5) return;
-      v = v + key;
+    default:{
+      if (v==='0'){v=key;break;} if (v==='-0'){v='-'+key;break;}
+      if (v.replace(/[^\d]/g,'').length>=5) return;
+      v = v+key;
     }
   }
-  S.vals[f] = v;
-  refreshVal(f);
+  S.vals[f]=v; refreshVal(f);
 }
 
-// ── Lie ────────────────────────────────────────────────────
+// ─── Lie Toggle ───────────────────────────────────────────────
 function setLie(lie){
-  S.lie = lie;
-  const t = document.getElementById('btn-lie-tee');
-  const g = document.getElementById('btn-lie-grass');
-  if (lie === 'tee') {
-    t.style.background='var(--tee)'; t.style.color='#fff'; t.style.border='none';
-    g.style.background='var(--raised)'; g.style.color='var(--mid)'; g.style.border='1.5px solid var(--frame)';
+  S.lie=lie; orbital_setLie(lie); classic_setLie(lie);
+}
+function orbital_setLie(lie){
+  const t=document.getElementById('o-btn-lie-tee');
+  const g=document.getElementById('o-btn-lie-grass');
+  if(!t||!g) return;
+  if(lie==='tee'){
+    t.style.background='#3B82F6'; t.style.color='#fff'; t.style.border='none';
+    g.style.background='#141526'; g.style.color='#4E5275'; g.style.border='1.5px solid #1C1E32';
   } else {
-    g.style.background='var(--grass)'; g.style.color='var(--bg)'; g.style.border='none';
-    t.style.background='var(--raised)'; t.style.color='var(--mid)'; t.style.border='1.5px solid var(--frame)';
+    g.style.background='#4ADE80'; g.style.color='#07080E'; g.style.border='none';
+    t.style.background='#141526'; t.style.color='#4E5275'; t.style.border='1.5px solid #1C1E32';
+  }
+}
+function classic_setLie(lie){
+  const t=document.getElementById('c-btn-lie-tee');
+  const g=document.getElementById('c-btn-lie-grass');
+  if(!t||!g) return;
+  if(lie==='tee'){
+    t.style.borderColor='#3B82F6'; t.style.background='rgba(59,130,246,.1)'; t.style.color='#3B82F6';
+    g.style.borderColor='#2D2D34'; g.style.background='#121214'; g.style.color='rgba(228,228,231,.6)';
+  } else {
+    g.style.borderColor='#4ADE80'; g.style.background='rgba(74,222,128,.1)'; g.style.color='#4ADE80';
+    t.style.borderColor='#2D2D34'; t.style.background='#121214'; t.style.color='rgba(228,228,231,.6)';
   }
 }
 
-// ── Submit ─────────────────────────────────────────────────
+// ─── Submit State ─────────────────────────────────────────────
+function setSubmitState(editing){
+  // Orbital
+  const oSub = document.getElementById('o-submitBtn');
+  const oCan = document.getElementById('o-cancelBtn');
+  const oBdg = document.getElementById('o-editBadge');
+  if(oSub) oSub.textContent = editing ? 'UPDATE SHOT' : 'LOG SHOT';
+  if(oCan) oCan.classList.toggle('hidden', !editing);
+  if(oBdg) oBdg.classList.toggle('hidden', !editing);
+
+  // Classic
+  const cSub = document.getElementById('c-submitBtn');
+  const cCan = document.getElementById('c-cancelBtn');
+  const cBdg = document.getElementById('c-editBadge');
+  if(cSub){
+    if(editing){
+      cSub.textContent='Update Shot';
+      cSub.style.background='#6366F1'; cSub.style.color='#fff'; cSub.style.flex='1';
+      cSub.style.boxShadow='0 4px 12px rgba(99,102,241,.2)';
+    } else {
+      cSub.textContent='Log Shot';
+      cSub.style.background='#10B981'; cSub.style.color='#121214'; cSub.style.flex='1';
+      cSub.style.boxShadow='0 4px 12px rgba(16,185,129,.15)';
+    }
+  }
+  if(cCan) cCan.classList.toggle('hidden', !editing);
+  if(cBdg) cBdg.classList.toggle('hidden', !editing);
+}
+
+// ─── Shot CRUD ────────────────────────────────────────────────
 function submitShot(){
   const carry = parseFloat(S.vals.carry);
   const speed = parseFloat(S.vals.speed);
-  if (!S.vals.carry || isNaN(carry)){ toast('Carry distance required','err'); return; }
-  if (!S.vals.speed || isNaN(speed)){ toast('Ball speed required','err'); return; }
-
-  const n = k => (S.vals[k] && S.vals[k]!=='-') ? parseFloat(S.vals[k]) : null;
+  if (!S.vals.carry||isNaN(carry)){ toast('Carry distance required','err'); return; }
+  if (!S.vals.speed||isNaN(speed)){ toast('Ball speed required','err'); return; }
+  const n = k => (S.vals[k]&&S.vals[k]!=='-') ? parseFloat(S.vals[k]) : null;
 
   const shot = {
     id:    S.editingId ?? Date.now(),
     ts:    S.editingId ? (S.shots.find(s=>s.id===S.editingId)?.ts ?? Date.now()) : Date.now(),
-    club:  S.club,
-    lie:   S.lie,
+    club:  S.club, lie:S.lie,
     carry, speed,
-    hang:  n('hang'),
-    apex:  n('apex'),
-    curve: n('curve'),
+    hang:  n('hang'), apex:n('apex'), curve:n('curve'),
   };
 
   if (S.editingId !== null){
-    const i = S.shots.findIndex(s => s.id===S.editingId);
-    if (i > -1) S.shots[i] = shot;
+    const i = S.shots.findIndex(s=>s.id===S.editingId);
+    if (i>-1) S.shots[i]=shot;
     save(); renderAll(); toast('Shot updated','ok'); cancelEdit();
   } else {
     S.shots.unshift(shot);
@@ -602,337 +976,423 @@ function submitShot(){
 }
 
 function clearInputs(){
-  FIELDS.forEach(f => { S.vals[f]=''; refreshVal(f); });
-  setFocus('carry');
+  FIELDS.forEach(f=>{S.vals[f]=''; refreshVal(f);}); setFocus('carry');
 }
 
 function editShot(id){
-  const s = S.shots.find(x => x.id===id);
-  if (!s) return;
+  const s = S.shots.find(x=>x.id===id); if(!s) return;
   S.editingId = id;
-  S.vals.carry = String(s.carry ?? '');
-  S.vals.speed = String(s.speed ?? '');
-  S.vals.hang  = s.hang  != null ? String(s.hang)  : '';
-  S.vals.apex  = s.apex  != null ? String(s.apex)  : '';
-  S.vals.curve = s.curve != null ? String(s.curve) : '';
-  FIELDS.forEach(f => refreshVal(f));
+  S.vals.carry = String(s.carry??''); S.vals.speed = String(s.speed??'');
+  S.vals.hang  = s.hang  !=null ? String(s.hang)  : '';
+  S.vals.apex  = s.apex  !=null ? String(s.apex)  : '';
+  S.vals.curve = s.curve !=null ? String(s.curve) : '';
+  FIELDS.forEach(f=>refreshVal(f));
   selectClub(s.club); setLie(s.lie); setFocus('carry');
-  document.getElementById('submitBtn').textContent = 'UPDATE SHOT';
-  document.getElementById('cancelBtn').classList.remove('hidden');
-  document.getElementById('editBadge').classList.remove('hidden');
+  setSubmitState(true);
   renderFeed();
-  window.scrollTo({ top:0, behavior:'smooth' });
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function cancelEdit(){
-  S.editingId = null;
-  clearInputs();
-  document.getElementById('submitBtn').textContent = 'LOG SHOT';
-  document.getElementById('cancelBtn').classList.add('hidden');
-  document.getElementById('editBadge').classList.add('hidden');
-  renderFeed();
+  S.editingId=null; clearInputs(); setSubmitState(false); renderFeed();
 }
 
-function deleteShot(id){
-  S.shots = S.shots.filter(s => s.id !== id);
-  if (S.editingId === id) cancelEdit();
-  save(); renderAll(); toast('Shot deleted','err');
+function requestDelete(id){
+  S.pendingDelete=id;
+  document.getElementById('deleteModal').classList.add('open');
+}
+function confirmDelete(){
+  const id=S.pendingDelete;
+  if (id!=null){
+    S.shots=S.shots.filter(s=>s.id!==id);
+    if (S.editingId===id) cancelEdit();
+    save(); renderAll(); toast('Shot deleted','err');
+  }
+  closeDeleteModal();
 }
 
-function save(){ localStorage.setItem(LS, JSON.stringify(S.shots)); }
-
-// ── Analytics ──────────────────────────────────────────────
+// ─── Analytics ────────────────────────────────────────────────
 function setTab(tab){
-  S.tab = tab;
-  ['all','tee','grass'].forEach(t => {
-    const el = document.getElementById(`tab-${t}`);
-    el.style.background = t===tab ? 'var(--raised)' : 'transparent';
-    el.style.color      = t===tab ? 'var(--text)'   : 'var(--mid)';
+  S.tab=tab;
+  // Orbital tabs
+  ['all','tee','grass'].forEach(t=>{
+    const oel=document.getElementById(`o-tab-${t}`);
+    if(oel){ oel.style.background=t===tab?'#141526':'transparent'; oel.style.color=t===tab?'#fff':'#4E5275'; }
+    const cel=document.getElementById(`c-tab-${t}`);
+    if(cel){
+      cel.style.background=t===tab?'#2D2D34':'transparent';
+      cel.style.color=t===tab?'#10B981':'rgba(228,228,231,.5)';
+    }
   });
   renderStats();
 }
 
 function filteredShots(){
-  return S.shots.filter(s => {
-    if (s.club !== S.club) return false;
-    if (S.tab==='tee')   return s.lie==='tee';
-    if (S.tab==='grass') return s.lie==='grass';
+  return S.shots.filter(s=>{
+    if(s.club!==S.club) return false;
+    if(S.tab==='tee')   return s.lie==='tee';
+    if(S.tab==='grass') return s.lie==='grass';
     return true;
   });
 }
 
 function calcStats(shots){
-  const r = {};
-  FIELDS.forEach(f => {
-    const vals = shots.map(s=>s[f]).filter(v => v!=null && !isNaN(v));
-    if (!vals.length){ r[f]=null; return; }
-    const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
+  const r={};
+  FIELDS.forEach(f=>{
+    const vals=shots.map(s=>s[f]).filter(v=>v!=null&&!isNaN(v));
+    if(!vals.length){r[f]=null;return;}
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
     let best;
-    if (f==='curve'){
-      const ma = Math.max(...vals.map(Math.abs));
-      best = vals.find(v => Math.abs(v)===ma) ?? 0;
-    } else {
-      best = Math.max(...vals);
-    }
-    r[f] = { avg, best, n:vals.length };
+    if(f==='curve'){const ma=Math.max(...vals.map(Math.abs)); best=vals.find(v=>Math.abs(v)===ma)??0;}
+    else { best=Math.max(...vals); }
+    r[f]={avg,best,n:vals.length};
   });
   return r;
 }
 
-function fmtCMax(v){
-  if (v==null) return '—';
-  if (v>0) return `R ${Math.abs(v).toFixed(1)}`;
-  if (v<0) return `L ${Math.abs(v).toFixed(1)}`;
-  return '0';
-}
+function renderStats(){ orbital_renderStats(); classic_renderStats(); }
 
-function renderStats(){
-  document.getElementById('analyticsClub').textContent = S.club.toUpperCase();
-  const shots = filteredShots();
-  const stats = calcStats(shots);
-  const g = document.getElementById('statsGrid');
-
-  if (!shots.length){
-    const lbl = S.tab==='all'?'all lies':S.tab==='tee'?'off tee':'off grass';
-    g.innerHTML = `<p class="text-sm text-center py-4 font-semibold" style="color:var(--dim);">
+function orbital_renderStats(){
+  const oa = document.getElementById('o-analyticsClub');
+  if(oa) oa.textContent = S.club.toUpperCase();
+  const shots=filteredShots(), stats=calcStats(shots);
+  const g=document.getElementById('o-statsGrid'); if(!g) return;
+  if(!shots.length){
+    const lbl=S.tab==='all'?'all lies':S.tab==='tee'?'off tee':'off grass';
+    g.innerHTML=`<p class="text-sm text-center py-4 font-semibold" style="color:#252840;">
       No ${S.club} (${lbl}) shots yet.</p>`;
     return;
   }
-
-  g.innerHTML = FIELDS.map(f => {
-    const m = META[f], s = stats[f], isCrv = f==='curve';
-    if (!s) return `
+  g.innerHTML = FIELDS.map(f=>{
+    const m=META[f], s=stats[f];
+    if(!s) return `
       <div class="flex items-center justify-between py-2">
         <span class="text-xs font-black tracking-widest" style="color:${m.bar};">
-          ${m.label} <span style="color:var(--mid);font-weight:500;">${m.unit}</span>
+          ${m.label.toUpperCase()} <span style="color:#252840;font-weight:500;">${unitLabel(m.unit)}</span>
         </span>
-        <span class="num text-xs" style="color:var(--dim);">No data</span>
+        <span class="o-num text-xs" style="color:#252840;">No data</span>
       </div>`;
-
-    const avgFmt = isCrv ? fmtCMax(s.avg)  : s.avg.toFixed(1);
-    const bstFmt = isCrv ? fmtCMax(s.best) : s.best.toFixed(1);
-
-    // Bar pct: avg as proportion of best
-    const denom = isCrv ? Math.abs(s.best) : s.best;
-    const numer = isCrv ? Math.abs(s.avg)  : s.avg;
-    const pct   = denom !== 0 ? Math.min(100, (numer/denom)*100) : 100;
-
+    const avgFmt = m.isCurve ? fmtCurveMax(s.avg,m.unit) : dispVal(s.avg,m.unit);
+    const bstFmt = m.isCurve ? fmtCurveMax(s.best,m.unit) : dispVal(s.best,m.unit);
+    const denom  = m.isCurve ? Math.abs(s.best) : s.best;
+    const numer  = m.isCurve ? Math.abs(s.avg)  : s.avg;
+    const pct    = denom ? Math.min(100,(numer/denom)*100) : 100;
     return `
-      <div class="py-3 border-b last:border-0" style="border-color:var(--frame);">
+      <div class="py-3 border-b last:border-0" style="border-color:#1C1E32;">
         <div class="flex items-center justify-between mb-2.5">
           <span class="text-xs font-black tracking-widest" style="color:${m.bar};">
-            ${m.label} <span style="color:var(--mid);font-weight:500;">${m.unit}</span>
+            ${m.label.toUpperCase()} <span style="color:#252840;font-weight:500;">${unitLabel(m.unit)}</span>
           </span>
-          <span class="num text-xs" style="color:var(--dim);">${s.n} shot${s.n!==1?'s':''}</span>
+          <span class="o-num text-xs" style="color:#252840;">${s.n} shot${s.n!==1?'s':''}</span>
         </div>
         <div class="flex items-center gap-3">
-          <div class="text-right" style="min-width:42px;">
-            <p class="num text-base font-bold" style="color:var(--text);">${avgFmt}</p>
-            <p class="text-xs font-black tracking-wider" style="color:var(--mid);">AVG</p>
+          <div style="min-width:48px;text-align:right;">
+            <p class="o-num text-base font-bold text-white">${avgFmt}</p>
+            <p class="text-xs font-black tracking-wider" style="color:#4E5275;">AVG</p>
           </div>
-          <div class="flex-1 bartrack">
-            <div class="barfill" style="width:${pct.toFixed(1)}%;background:${m.bar};opacity:0.85;"></div>
+          <div class="flex-1 o-bartrack">
+            <div class="o-barfill" style="width:${pct.toFixed(1)}%;background:${m.bar};opacity:.85;"></div>
           </div>
-          <div style="min-width:42px;">
-            <p class="num text-base font-bold" style="color:${m.bar};">${bstFmt}</p>
-            <p class="text-xs font-black tracking-wider" style="color:var(--mid);">${isCrv?'DEV':'BEST'}</p>
+          <div style="min-width:48px;">
+            <p class="o-num text-base font-bold" style="color:${m.bar};">${bstFmt}</p>
+            <p class="text-xs font-black tracking-wider" style="color:#4E5275;">${m.isCurve?'DEV':'BEST'}</p>
           </div>
         </div>
       </div>`;
   }).join('');
 }
 
-// ── Feed ───────────────────────────────────────────────────
+function classic_renderStats(){
+  const sh = document.getElementById('c-statsHeading');
+  const sb = document.getElementById('c-shotBadge');
+  if(sh) sh.textContent = S.club.toUpperCase()+' PERFORMANCE';
+  const shots=filteredShots(), stats=calcStats(shots);
+  if(sb) sb.textContent = `${shots.length} ${shots.length===1?'SHOT':'SHOTS'}`;
+  const g=document.getElementById('c-statsGrid'); if(!g) return;
+  if(!shots.length){
+    g.innerHTML=`<div class="text-xs text-center py-4 c-tech uppercase tracking-wider" style="color:rgba(228,228,231,.3);">
+      No data for ${S.club}</div>`;
+    return;
+  }
+  const C2='#10B981', C3='#6366F1';
+  const rows=[
+    {f:'carry', label:'Carry Distance', accent:C2},
+    {f:'speed', label:'Ball Speed',     accent:C2},
+    {f:'hang',  label:'Hang Time',      accent:C3},
+    {f:'apex',  label:'Apex Height',    accent:C3},
+    {f:'curve', label:'Curve',          accent:C3, isCurve:true},
+  ];
+  g.innerHTML = rows.map(r=>{
+    const m=META[r.f], s=stats[r.f];
+    const ul=unitLabel(m.unit);
+    const avgFmt = s ? (r.isCurve ? fmtCurveMax(s.avg,m.unit)  : dispVal(s.avg,m.unit))  : '0.0';
+    const bstFmt = s ? (r.isCurve ? fmtCurveMax(s.best,m.unit) : dispVal(s.best,m.unit)) : '0.0';
+    const topLbl = r.isCurve ? 'Max Dev' : 'Top';
+    return `
+      <div class="flex justify-between items-center pb-2 border-b last:border-0" style="border-color:rgba(45,45,52,.3);">
+        <span class="c-tech tracking-wider uppercase" style="font-size:10px;color:rgba(228,228,231,.4);">${r.label}</span>
+        <div class="flex gap-5">
+          <div class="text-right">
+            <span class="block c-tech uppercase" style="font-size:9px;color:rgba(228,228,231,.3);">Avg</span>
+            <span class="c-tech text-xl font-bold text-white">${avgFmt}</span>
+            <span class="c-tech font-bold ml-0.5" style="font-size:10px;color:rgba(228,228,231,.4);">${ul}</span>
+          </div>
+          <div class="text-right" style="min-width:60px;">
+            <span class="block c-tech uppercase" style="font-size:9px;color:${r.accent}70;">${topLbl}</span>
+            <span class="c-tech text-xl font-bold" style="color:${r.accent};">${bstFmt}</span>
+            <span class="c-tech font-bold ml-0.5" style="font-size:10px;color:${r.accent}70;">${ul}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── Feed ─────────────────────────────────────────────────────
 function relTime(ts){
-  const d = Date.now()-ts;
-  if (d<60000)     return 'just now';
-  if (d<3600000)   return `${Math.floor(d/60000)}m ago`;
-  if (d<86400000)  return `${Math.floor(d/3600000)}h ago`;
-  if (d<604800000) return `${Math.floor(d/86400000)}d ago`;
+  const d=Date.now()-ts;
+  if(d<60000) return 'just now';
+  if(d<3600000) return `${Math.floor(d/60000)}m ago`;
+  if(d<86400000) return `${Math.floor(d/3600000)}h ago`;
+  if(d<604800000) return `${Math.floor(d/86400000)}d ago`;
   return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
-
-function fmtCrv(v){
-  if (v==null) return { t:'—',  c:'var(--dim)' };
-  if (v>0)     return { t:`R${Math.abs(v)}`, c:'#5B9EFF' };
-  if (v<0)     return { t:`L${Math.abs(v)}`, c:'#FF9D00' };
-  return { t:'0', c:'var(--text)' };
+function fmtTimestamp(ts){
+  const d=new Date(ts);
+  return d.toLocaleDateString([],{month:'short',day:'numeric'})+' '+
+         d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+function curveFeedFmt(v){
+  if(v==null) return {t:'—',c:'#252840'};
+  if(v>0) return {t:`R${Math.abs(v)}`,c:'#60A5FA'};
+  if(v<0) return {t:`L${Math.abs(v)}`,c:'#FB923C'};
+  return {t:'0',c:'#DDE0F5'};
 }
 
-function renderFeed(){
-  const feed  = document.getElementById('feed');
-  const empty = document.getElementById('emptyState');
-  const cnt   = document.getElementById('shotCount');
-  const n     = S.shots.length;
-  cnt.textContent = `${n} shot${n!==1?'s':''}`;
+function renderFeed(){ orbital_renderFeed(); classic_renderFeed(); }
 
-  if (!n){ feed.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display = 'none';
-
-  const noV = `<span style="color:var(--dim);">—</span>`;
-
-  feed.innerHTML = S.shots.map(s => {
-    const ed   = s.id === S.editingId;
-    const cv   = fmtCrv(s.curve);
-    const lie  = s.lie || 'tee';
-    const lieC = lie==='tee' ? 'var(--tee)' : 'var(--grass)';
-    const lieL = lie==='tee' ? 'TEE' : 'GRASS';
-    const lieBg= lie==='tee'
-      ? 'rgba(59,130,246,0.15)' : 'rgba(74,222,128,0.15)';
-
+function orbital_renderFeed(){
+  const feed =document.getElementById('o-feed');
+  const empty=document.getElementById('o-emptyState');
+  const cnt  =document.getElementById('o-shotCount');
+  const n=S.shots.length;
+  if(cnt) cnt.textContent=`${n} shot${n!==1?'s':''}`;
+  if(!n){if(feed)feed.innerHTML=''; if(empty)empty.style.display='block'; return;}
+  if(empty)empty.style.display='none';
+  const noV=`<span style="color:#252840;">—</span>`;
+  feed.innerHTML = S.shots.map(s=>{
+    const ed=s.id===S.editingId;
+    const cv=curveFeedFmt(s.curve);
+    const lie=s.lie||'tee';
+    const lieC=lie==='tee'?'#3B82F6':'#4ADE80';
+    const lieL=lie==='tee'?'TEE':'GRASS';
+    const lieBg=lie==='tee'?'rgba(59,130,246,.15)':'rgba(74,222,128,.15)';
+    const fCarry=s.carry!=null ? dispVal(s.carry,'dist') : null;
+    const fSpeed=s.speed!=null ? dispVal(s.speed,'speed') : null;
+    const fApex =s.apex !=null ? dispVal(s.apex,'height') : null;
     return `
-    <div class="shot rounded-2xl overflow-hidden"
-      style="background:var(--surf);border:1px solid ${ed?'var(--orange)':'var(--frame)'};">
-      <!-- Left accent stripe + content -->
+    <div class="shot-anim rounded-2xl overflow-hidden"
+      style="background:#0D0E19;border:1px solid ${ed?'#FF5500':'#1C1E32'};">
       <div class="flex">
         <div style="width:3px;flex-shrink:0;background:${lieC};"></div>
         <div class="flex-1 p-3">
-
-          <!-- Header row -->
           <div class="flex items-center justify-between mb-2.5">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-black" style="color:var(--text);">${s.club}</span>
+              <span class="text-sm font-black text-white">${s.club}</span>
               <span class="text-xs font-black px-2 py-0.5 rounded-full tracking-widest"
                 style="background:${lieBg};color:${lieC};">${lieL}</span>
             </div>
             <div class="flex items-center gap-2">
-              <span class="num text-xs font-bold" style="color:var(--dim);">${relTime(s.ts)}</span>
-              <!-- Edit -->
-              <button onclick="editShot(${s.id})"
-                class="kb w-7 h-7 rounded-xl flex items-center justify-center"
-                style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--lime)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <span class="o-num text-xs font-bold" style="color:#252840;">${relTime(s.ts)}</span>
+              <button onclick="editShot(${s.id})" class="o-kb w-7 h-7 rounded-xl flex items-center justify-center"
+                style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#38BDF8"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
               </button>
-              <!-- Delete -->
-              <button onclick="deleteShot(${s.id})"
-                class="kb w-7 h-7 rounded-xl flex items-center justify-center"
-                style="background:rgba(255,31,61,0.08);border:1px solid rgba(255,31,61,0.2);">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--red)" stroke-width="2.5" stroke-linecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6"  y1="6" x2="18" y2="18"/>
+              <button onclick="requestDelete(${s.id})" class="o-kb w-7 h-7 rounded-xl flex items-center justify-center"
+                style="background:rgba(255,31,61,.08);border:1px solid rgba(255,31,61,.2);">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#FF1F3D"
+                  stroke-width="2.5" stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
             </div>
           </div>
-
-          <!-- Stats row -->
           <div class="grid grid-cols-5 gap-1">
             <div>
-              <p class="text-xs mb-0.5" style="color:var(--dim);">CARRY</p>
-              <p class="num text-sm font-bold" style="color:${s.carry!=null?'var(--text)':'var(--red)'};">${s.carry ?? '?'}</p>
+              <p class="text-xs mb-0.5" style="color:#252840;">CARRY</p>
+              <p class="o-num text-sm font-bold" style="color:${fCarry!=null?'#DDE0F5':'#FF1F3D'};">${fCarry??'?'}</p>
             </div>
             <div>
-              <p class="text-xs mb-0.5" style="color:var(--dim);">SPD</p>
-              <p class="num text-sm font-bold" style="color:${s.speed!=null?'var(--text)':'var(--red)'};">${s.speed ?? '?'}</p>
+              <p class="text-xs mb-0.5" style="color:#252840;">SPD</p>
+              <p class="o-num text-sm font-bold" style="color:${fSpeed!=null?'#DDE0F5':'#FF1F3D'};">${fSpeed??'?'}</p>
             </div>
             <div>
-              <p class="text-xs mb-0.5" style="color:var(--dim);">HANG</p>
-              <p class="num text-sm font-bold">${s.hang!=null ? `<span style="color:var(--text);">${s.hang}</span>` : noV}</p>
+              <p class="text-xs mb-0.5" style="color:#252840;">HANG</p>
+              <p class="o-num text-sm font-bold">${s.hang!=null?`<span style="color:#DDE0F5;">${s.hang}</span>`:noV}</p>
             </div>
             <div>
-              <p class="text-xs mb-0.5" style="color:var(--dim);">HGT</p>
-              <p class="num text-sm font-bold">${s.apex!=null ? `<span style="color:var(--text);">${s.apex}</span>` : noV}</p>
+              <p class="text-xs mb-0.5" style="color:#252840;">HGT</p>
+              <p class="o-num text-sm font-bold">${fApex!=null?`<span style="color:#DDE0F5;">${fApex}</span>`:noV}</p>
             </div>
             <div>
-              <p class="text-xs mb-0.5" style="color:var(--dim);">CRV</p>
-              <p class="num text-sm font-bold" style="color:${cv.c};">${cv.t}</p>
+              <p class="text-xs mb-0.5" style="color:#252840;">CRV</p>
+              <p class="o-num text-sm font-bold" style="color:${cv.c};">${cv.t}</p>
             </div>
           </div>
-
         </div>
       </div>
     </div>`;
   }).join('');
 }
 
-// ── Render All ─────────────────────────────────────────────
+function classic_renderFeed(){
+  const list=document.getElementById('c-shotList');
+  const cnt =document.getElementById('c-shotCount');
+  if(!list) return;
+  if(cnt) cnt.textContent = S.shots.length ? `${S.shots.length} shots` : '';
+  if(!S.shots.length){
+    list.innerHTML=`<div class="text-xs text-center py-4 c-tech uppercase tracking-wider" style="color:rgba(228,228,231,.3);">
+      No historic payload telemetry</div>`;
+    return;
+  }
+  list.innerHTML = S.shots.map(s=>{
+    const ed=s.id===S.editingId;
+    const lie=s.lie||'tee';
+    const lieL=lie==='tee'?'TEE':'GRS';
+    const lieC=lie==='tee'?'color:#3B82F6;background:rgba(59,130,246,.1)':'color:#4ADE80;background:rgba(74,222,128,.1)';
+    const fDist =s.carry!=null ? dispVal(s.carry,'dist')  : '--';
+    const fSpeed=s.speed!=null ? dispVal(s.speed,'speed') : '--';
+    const fHang =s.hang !=null ? `${s.hang}s` : '--';
+    const fHgt  =s.apex !=null ? `${dispVal(s.apex,'height')}${unitLabel('height').toLowerCase()}` : '--';
+    let fCrv='--';
+    if(s.curve!=null){
+      const abs=applyUnit(Math.abs(s.curve),'curve').toFixed(1);
+      const ul=unitLabel('curve').toLowerCase();
+      fCrv=s.curve>0?`R ${abs}${ul}`:s.curve<0?`L ${abs}${ul}`:`0${ul}`;
+    }
+    const ul_dist =unitLabel('dist');
+    const ul_speed=unitLabel('speed');
+    return `
+    <div class="shot-anim flex flex-col py-3 space-y-1 ${ed?'px-2 rounded-xl -mx-1':''}
+      " style="${ed?'background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.2);':''}">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <span class="c-tech text-xs font-bold text-white rounded-md px-2 py-0.5 text-center"
+            style="background:#2D2D34;min-width:50px;">${s.club.toUpperCase()}</span>
+          <span class="c-tech font-bold rounded px-1.5 py-0.5" style="font-size:9px;${lieC};">${lieL}</span>
+          <span class="c-num text-[11px]" style="color:rgba(228,228,231,.4);">${fmtTimestamp(s.ts)}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="text-right c-tech text-xs tracking-tight">
+            <span class="text-white font-bold">${fDist}</span>
+            <span style="font-size:9px;color:rgba(228,228,231,.4);"> ${ul_dist}</span>
+            <span class="mx-1" style="color:#2D2D34;">|</span>
+            <span class="text-white font-bold">${fSpeed}</span>
+            <span style="font-size:9px;color:rgba(228,228,231,.4);"> ${ul_speed}</span>
+          </div>
+          <div class="flex items-center">
+            <button onclick="editShot(${s.id})" class="c-kb p-1.5" style="color:rgba(99,102,241,.7);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button onclick="requestDelete(${s.id})" class="c-kb p-1.5" style="color:rgba(239,68,68,.6);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-x-4 gap-y-0.5 c-num" style="font-size:10px;color:rgba(228,228,231,.4);padding-left:62px;">
+        <span>Hang: <strong style="color:rgba(228,228,231,.7);">${fHang}</strong></span>
+        <span>Height: <strong style="color:rgba(228,228,231,.7);">${fHgt}</strong></span>
+        <span>Curve: <strong style="color:rgba(228,228,231,.7);">${fCrv}</strong></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Render All ───────────────────────────────────────────────
 function renderAll(){
   buildClubs(); renderStats(); renderFeed();
-  document.getElementById('analyticsClub').textContent = S.club.toUpperCase();
+  updateUnitToggleUI(); updateMetricUnitLabels();
+  setSubmitState(S.editingId !== null);
+  const oa=document.getElementById('o-analyticsClub');
+  if(oa) oa.textContent=S.club.toUpperCase();
+  const sh=document.getElementById('c-statsHeading');
+  if(sh) sh.textContent=S.club.toUpperCase()+' PERFORMANCE';
 }
 
-// ── Modal ──────────────────────────────────────────────────
-function openModal()     { document.getElementById('modal').classList.add('open'); }
-function closeModal()    { document.getElementById('modal').classList.remove('open'); }
-function closeModalBg(e){ if (e.target===document.getElementById('modal')) closeModal(); }
-
+// ─── Export / Import ──────────────────────────────────────────
 function exportData(){
-  if (!S.shots.length){ toast('No shots to export','err'); return; }
-  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(S.shots))));
-  if (navigator.clipboard?.writeText){
+  if(!S.shots.length){ toast('No shots to export','err'); return; }
+  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(S.shots))));
+  if(navigator.clipboard?.writeText){
     navigator.clipboard.writeText(b64)
-      .then(()  => toast(`${S.shots.length} shots copied!`, 'ok'))
-      .catch(()  => fbCopy(b64));
+      .then(()=>toast(`${S.shots.length} shots copied!`,'ok'))
+      .catch(()=>fbCopy(b64));
   } else fbCopy(b64);
 }
-
 function fbCopy(text){
-  const ta = Object.assign(document.createElement('textarea'),
-    { value:text, style:'position:fixed;opacity:0;top:0;left:0;' });
-  document.body.appendChild(ta);
-  ta.focus(); ta.select();
-  try { document.execCommand('copy'); } catch(_){}
+  const ta=Object.assign(document.createElement('textarea'),{value:text,style:'position:fixed;opacity:0;top:0;left:0;'});
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{document.execCommand('copy');}catch(_){}
   document.body.removeChild(ta);
   toast('Copied to clipboard!','ok');
 }
-
-// Coerce any shot object — from any version — into a clean, consistent shape.
-function normalizeShot(s){
-  const n = v => {
-    const f = parseFloat(v);
-    return (!isNaN(f) && v != null) ? f : null;
-  };
-  return {
-    id:    s.id    ?? Date.now(),
-    ts:    s.ts    ?? Date.now(),
-    club:  s.club  || 'Driver',
-    lie:   s.lie   || 'tee',
-    // try current field name, then common legacy aliases
-    carry: n(s.carry  ?? s.distance ?? s.carryDistance ?? s.yards),
-    speed: n(s.speed  ?? s.ballSpeed ?? s.mph ?? s.velocity),
-    hang:  n(s.hang   ?? s.hangTime  ?? s.airTime),
-    apex:  n(s.apex   ?? s.height    ?? s.peakHeight ?? s.maxHeight),
-    curve: n(s.curve  ?? s.deviation ?? s.lateral),
-  };
-}
-
 function importData(){
-  const raw = (document.getElementById('importText').value||'').trim();
-  if (!raw){ toast('Paste an export string first','err'); return; }
-  try {
-    const parsed = JSON.parse(decodeURIComponent(escape(atob(raw))));
-    if (!Array.isArray(parsed)) throw 0;
-    S.shots = parsed.map(normalizeShot);
+  const raw=(document.getElementById('importText').value||'').trim();
+  if(!raw){ toast('Paste an export string first','err'); return; }
+  try{
+    let parsed;
+    try{ parsed=JSON.parse(decodeURIComponent(escape(atob(raw)))); }
+    catch(_){ parsed=JSON.parse(atob(raw)); } // fallback: Gemini simple format
+    if(!Array.isArray(parsed)) throw 0;
+    S.shots=parsed.map(normalizeShot).sort((a,b)=>b.ts-a.ts);
     save();
-    if (S.editingId !== null) cancelEdit(); else renderAll();
+    if(S.editingId!==null) cancelEdit(); else renderAll();
     renderAll();
-    document.getElementById('importText').value = '';
+    document.getElementById('importText').value='';
     toast(`Imported ${S.shots.length} shots`,'ok');
-    closeModal();
+    closeDataModal();
   } catch(_){ toast('Invalid import string','err'); }
 }
 
-// ── Toast ──────────────────────────────────────────────────
+// ─── Modal helpers ────────────────────────────────────────────
+function openDataModal()  { document.getElementById('dataModal').classList.add('open'); }
+function closeDataModal() { document.getElementById('dataModal').classList.remove('open'); }
+function closeDataModalBg(e){ if(e.target===document.getElementById('dataModal')) closeDataModal(); }
+
+function closeDeleteModal(){ S.pendingDelete=null; document.getElementById('deleteModal').classList.remove('open'); }
+function closeDeleteModalBg(e){ if(e.target===document.getElementById('deleteModal')) closeDeleteModal(); }
+
+function openThemeModal()  { document.getElementById('themeModal').classList.add('open'); }
+function closeThemeModal() { document.getElementById('themeModal').classList.remove('open'); }
+function closeThemeModalBg(e){ if(e.target===document.getElementById('themeModal')) closeThemeModal(); }
+
+// ─── Toast ────────────────────────────────────────────────────
 let _tt;
-function toast(msg, type){
+function toast(msg,type){
   clearTimeout(_tt);
-  document.getElementById('toast-msg').textContent = msg;
-  const icon  = document.getElementById('toast-icon');
-  const inner = document.getElementById('toast-inner');
-  if (type==='err'){
-    icon.textContent  = '✕'; icon.style.color  = 'var(--red)';
-    inner.style.borderColor = 'rgba(255,31,61,0.4)';
+  document.getElementById('toast-msg').textContent=msg;
+  const icon =document.getElementById('toast-icon');
+  const inner=document.getElementById('toast-inner');
+  if(type==='err'){
+    icon.textContent='✕'; icon.style.color='#FF1F3D';
+    inner.style.borderColor='rgba(255,31,61,.4)';
   } else {
-    icon.textContent  = '✓'; icon.style.color  = 'var(--lime)';
-    inner.style.borderColor = 'rgba(192,255,0,0.35)';
+    icon.textContent='✓'; icon.style.color='#38BDF8';
+    inner.style.borderColor='rgba(56,189,248,.35)';
   }
   document.getElementById('toast').classList.add('show');
-  _tt = setTimeout(() => document.getElementById('toast').classList.remove('show'), 2500);
+  _tt=setTimeout(()=>document.getElementById('toast').classList.remove('show'),2500);
 }
 </script>
 </body>
