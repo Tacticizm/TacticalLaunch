@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tactical-launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "4200", "E:/Claude/TacticalLaunch"],
+      "port": 4200
+    }
+  ]
+}
