@@ -290,13 +290,11 @@
           <span id="o-analyticsClub" class="text-xs font-black tracking-widest" style="color:#38BDF8;">—</span>
         </div>
       </div>
-      <div class="flex gap-2 mb-5">
-        <button id="o-tab-all" class="o-stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
-          onclick="setTab('all')" style="background:#141526;color:#fff;">ALL</button>
-        <button id="o-tab-tee" class="o-stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
-          onclick="setTab('tee')" style="background:transparent;color:#4E5275;">TEE</button>
-        <button id="o-tab-grass" class="o-stab flex-1 py-2 rounded-xl text-xs font-black tracking-widest"
-          onclick="setTab('grass')" style="background:transparent;color:#4E5275;">GRASS</button>
+      <div class="flex gap-1.5 mb-5">
+        <button id="o-tab-all" class="o-stab flex-1 py-2 rounded-xl font-black tracking-widest" style="font-size:10px;background:#141526;color:#fff;" onclick="setTab('all')">ALL</button>
+        <button id="o-tab-topgolf" class="o-stab flex-1 py-2 rounded-xl font-black tracking-widest" style="font-size:10px;background:transparent;color:#4E5275;" onclick="setTab('topgolf')">TOP GOLF</button>
+        <button id="o-tab-topscore" class="o-stab flex-1 py-2 rounded-xl font-black tracking-widest" style="font-size:10px;background:transparent;color:#4E5275;" onclick="setTab('topscore')">TOP SCORE</button>
+        <button id="o-tab-practice" class="o-stab flex-1 py-2 rounded-xl font-black tracking-widest" style="font-size:10px;background:transparent;color:#4E5275;" onclick="setTab('practice')">PRACTICE</button>
       </div>
       <div id="o-statsGrid" class="space-y-4"></div>
     </div>
@@ -494,16 +492,19 @@
           class="c-kb c-tech font-bold rounded border uppercase tracking-widest px-2 py-1"
           style="font-size:9px;background:rgba(99,102,241,.1);color:#6366F1;border-color:rgba(99,102,241,.2);">VIEW: US</button>
       </div>
-      <div class="grid grid-cols-3 p-1 rounded-xl mt-3 mb-3" style="background:#121214;border:1px solid rgba(45,45,52,.6);">
+      <div class="grid grid-cols-4 p-1 rounded-xl mt-3 mb-3" style="background:#121214;border:1px solid rgba(45,45,52,.6);">
         <button id="c-tab-all" onclick="setTab('all')"
           class="c-kb c-tech font-bold py-1.5 rounded-lg text-center uppercase tracking-wide"
-          style="font-size:10px;background:#2D2D34;color:#10B981;">All</button>
-        <button id="c-tab-tee" onclick="setTab('tee')"
+          style="font-size:9px;background:#2D2D34;color:#10B981;">All</button>
+        <button id="c-tab-topgolf" onclick="setTab('topgolf')"
           class="c-kb c-tech font-bold py-1.5 rounded-lg text-center uppercase tracking-wide"
-          style="font-size:10px;color:rgba(228,228,231,.5);">Tee</button>
-        <button id="c-tab-grass" onclick="setTab('grass')"
+          style="font-size:9px;color:rgba(228,228,231,.5);">Top Golf</button>
+        <button id="c-tab-topscore" onclick="setTab('topscore')"
           class="c-kb c-tech font-bold py-1.5 rounded-lg text-center uppercase tracking-wide"
-          style="font-size:10px;color:rgba(228,228,231,.5);">Grass</button>
+          style="font-size:9px;color:rgba(228,228,231,.5);">Top Score</button>
+        <button id="c-tab-practice" onclick="setTab('practice')"
+          class="c-kb c-tech font-bold py-1.5 rounded-lg text-center uppercase tracking-wide"
+          style="font-size:9px;color:rgba(228,228,231,.5);">Practice</button>
       </div>
       <div id="c-statsGrid" class="space-y-3"></div>
     </div>

@@ -442,7 +442,7 @@ function confirmDelete(){
 // ─── Analytics ────────────────────────────────────────────────
 function setTab(tab){
   S.tab=tab;
-  ['all','tee','grass'].forEach(t=>{
+  ['all','topgolf','topscore','practice'].forEach(t=>{
     const oel=document.getElementById(`o-tab-${t}`);
     if(oel){ oel.style.background=t===tab?'#141526':'transparent'; oel.style.color=t===tab?'#fff':'#4E5275'; }
     const cel=document.getElementById(`c-tab-${t}`);
@@ -457,8 +457,9 @@ function setTab(tab){
 function filteredShots(){
   return S.shots.filter(s=>{
     if(s.club!==S.club) return false;
-    if(S.tab==='tee')   return s.lie==='tee';
-    if(S.tab==='grass') return s.lie==='grass';
+    if(S.tab==='topgolf')  return s.mode==='topgolf';
+    if(S.tab==='topscore') return s.mode==='topscore';
+    if(S.tab==='practice') return s.mode==='practice';
     return true;
   });
 }
@@ -485,7 +486,7 @@ function orbital_renderStats(){
   const shots=filteredShots(), stats=calcStats(shots);
   const g=document.getElementById('o-statsGrid'); if(!g) return;
   if(!shots.length){
-    const lbl=S.tab==='all'?'all lies':S.tab==='tee'?'off tee':'off grass';
+    const lbl=S.tab==='all'?'any mode':S.tab==='topgolf'?'Top Golf':S.tab==='topscore'?'Top Score':'Practice';
     g.innerHTML=`<p class="text-sm text-center py-4 font-semibold" style="color:#252840;">
       No ${S.club} (${lbl}) shots yet.</p>`;
     return;
