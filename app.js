@@ -1371,6 +1371,154 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
   }
 }
 
+// ─── Top Golf Screen Scanner ──────────────────────────────────
+
+let _scan = { state: 'idle', imgUrl: null, result: {} };
+
+function openScan(){
+  document.getElementById('scanFileInput').value = '';
+  document.getElementById('scanFileInput').click();
+}
+
+function handleScanFile(input){
+  const file = input.files[0];
+  if (!file) return;
+  _scan.state  = 'scanning';
+  _scan.result = {};
+  _scan.imgUrl = URL.createObjectURL(file);
+  renderScanModal();
+  document.getElementById('scanModal').classList.add('open');
+  runOCR(file);
+}
+
+async function runOCR(file){
+  try {
+    const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+      logger: m => {
+        if (m.status === 'recognizing text'){
+          const pct = Math.round((m.progress || 0) * 100);
+          const bar = document.getElementById('scan-progress-bar');
+          const lbl = document.getElementById('scan-progress-lbl');
+          if (bar) bar.style.width = pct + '%';
+          if (lbl) lbl.textContent  = `Reading... ${pct}%`;
+        }
+      }
+    });
+    _scan.result = parseScanText(text);
+    _scan.state  = 'done';
+  } catch(e){
+    _scan.state = 'error';
+  }
+  renderScanModal();
+}
+
+function parseScanText(raw){
+  // Normalise: uppercase, collapse whitespace, keep dots/digits
+  const t = raw.toUpperCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
+
+  const near = (label, minVal, maxVal, decimal) => {
+    // Search for label then grab the first number within 40 chars
+    const re = new RegExp(label + '[^\\d]{0,40}?(\\d{1,3}(?:\\.\\d{1,2})?)');
+    const m  = t.match(re);
+    if (!m) return null;
+    const v = parseFloat(m[1]);
+    return (v >= minVal && v <= maxVal) ? v : null;
+  };
+
+  return {
+    carry: near('CARRY',         10, 400, true),
+    speed: near('(?:BALL\\s*)?SPEED', 10, 250, true),
+    hang:  near('HANG',           0,  20, true),
+  };
+}
+
+function closeScanModal(){
+  document.getElementById('scanModal').classList.remove('open');
+  if (_scan.imgUrl){ URL.revokeObjectURL(_scan.imgUrl); _scan.imgUrl = null; }
+}
+function closeScanModalBg(e){
+  if (e.target === document.getElementById('scanModal')) closeScanModal();
+}
+
+function scanApply(){
+  const r = _scan.result;
+  // Apply detected values to the input state
+  if (r.carry != null){ S.vals.carry = String(r.carry); refreshVal('carry'); }
+  if (r.speed != null){ S.vals.speed = String(r.speed); refreshVal('speed'); }
+  if (r.hang  != null){ S.vals.hang  = String(r.hang);  refreshVal('hang');  }
+  // Clear practice fields and set mode to topgolf (TG screen has no apex/curve)
+  S.vals.apex = ''; S.vals.curve = ''; refreshVal('apex'); refreshVal('curve');
+  if (S.mode !== 'topgolf') setMode('topgolf');
+  closeScanModal();
+  setFocus('carry');
+  toast('Stats loaded — review and log!', 'ok');
+}
+
+function renderScanModal(){
+  const body = document.getElementById('scanModalBody');
+  if (!body) return;
+
+  const fmtVal = (v, unit) => v != null
+    ? `<span class="o-num text-xl font-black text-white">${v}</span> <span class="text-xs" style="color:#4E5275;">${unit}</span>`
+    : `<span class="text-sm font-bold" style="color:#252840;">—</span>`;
+
+  if (_scan.state === 'scanning'){
+    body.innerHTML = `
+      ${_scan.imgUrl ? `<img src="${_scan.imgUrl}" alt="scan" style="width:100%;max-height:200px;object-fit:cover;border-bottom:1px solid #1C1E32;">` : ''}
+      <div class="px-5 py-6 text-center">
+        <p id="scan-progress-lbl" class="text-xs font-black tracking-widest mb-4" style="color:#4E5275;">Reading...</p>
+        <div class="rounded-full overflow-hidden" style="height:3px;background:#1C1E32;">
+          <div id="scan-progress-bar" class="h-full rounded-full transition-all" style="width:0%;background:#38BDF8;"></div>
+        </div>
+        <p class="text-xs mt-4" style="color:#252840;">Scanning the stats strip — hold tight</p>
+      </div>`;
+    return;
+  }
+
+  if (_scan.state === 'error'){
+    body.innerHTML = `
+      <div class="px-5 py-8 text-center">
+        <p class="text-sm font-black text-white mb-2">Couldn't read the image</p>
+        <p class="text-xs mb-5" style="color:#4E5275;">Try again with better lighting or move closer to the stats strip.</p>
+        <button onclick="openScan(); closeScanModal();" class="o-kb px-6 py-3 rounded-2xl text-xs font-black tracking-widest"
+          style="background:#38BDF8;color:#07080E;">TRY AGAIN</button>
+      </div>`;
+    return;
+  }
+
+  // DONE state
+  const r  = _scan.result;
+  const ok = r.carry != null || r.speed != null || r.hang != null;
+
+  body.innerHTML = `
+    ${_scan.imgUrl ? `<img src="${_scan.imgUrl}" alt="scan" style="width:100%;max-height:180px;object-fit:cover;object-position:bottom;border-bottom:1px solid #1C1E32;">` : ''}
+    <div class="px-5 pt-5 pb-2">
+      <p class="text-xs font-black tracking-widest mb-4" style="color:#4E5275;">DETECTED STATS</p>
+      <div class="grid grid-cols-3 gap-3 mb-5">
+        <div class="rounded-2xl p-3 text-center" style="background:#141526;border:1px solid ${r.carry!=null?'#38BDF8':'#1C1E32'};">
+          <p class="text-xs font-black tracking-widest mb-2" style="color:#4E5275;">CARRY</p>
+          ${fmtVal(r.carry,'YDS')}
+        </div>
+        <div class="rounded-2xl p-3 text-center" style="background:#141526;border:1px solid ${r.speed!=null?'#38BDF8':'#1C1E32'};">
+          <p class="text-xs font-black tracking-widest mb-2" style="color:#4E5275;">SPEED</p>
+          ${fmtVal(r.speed,'MPH')}
+        </div>
+        <div class="rounded-2xl p-3 text-center" style="background:#141526;border:1px solid ${r.hang!=null?'#38BDF8':'#1C1E32'};">
+          <p class="text-xs font-black tracking-widest mb-2" style="color:#4E5275;">HANG</p>
+          ${fmtVal(r.hang,'SEC')}
+        </div>
+      </div>
+      ${!ok ? `<p class="text-xs text-center mb-4" style="color:#FF5500;">No stats detected — try again closer to the stats strip.</p>` : ''}
+      <div class="flex gap-3 pb-2">
+        <button onclick="openScan(); closeScanModal();" class="o-kb flex-1 py-3 rounded-2xl text-xs font-black tracking-widest"
+          style="background:#141526;border:1px solid #1C1E32;color:#4E5275;">RETRY</button>
+        ${ok ? `<button onclick="scanApply()" class="o-kb flex-1 py-3 rounded-2xl text-xs font-black tracking-widest"
+          style="background:#38BDF8;color:#07080E;">USE THESE STATS</button>` : ''}
+      </div>
+    </div>
+    <div style="height:max(env(safe-area-inset-bottom),8px);"></div>`;
+}
+
 // ─── Date Range Filter ────────────────────────────────────────
 
 let _cal = {

@@ -272,8 +272,18 @@
     </div>
 
     <!-- Submit -->
-    <button id="o-submitBtn" class="w-full rounded-2xl py-5 text-base font-black tracking-widest"
-      style="background:#38BDF8;color:#07080E;" onclick="submitShot()">LOG SHOT</button>
+    <div class="flex gap-2">
+      <button id="o-submitBtn" class="flex-1 rounded-2xl py-5 text-base font-black tracking-widest"
+        style="background:#38BDF8;color:#07080E;" onclick="submitShot()">LOG SHOT</button>
+      <button onclick="openScan()" class="o-kb w-16 rounded-2xl flex items-center justify-center border"
+        style="background:#141526;border-color:#1C1E32;" title="Scan Top Golf Screen">
+        <svg width="22" height="18" viewBox="0 0 24 20" fill="none" stroke="#4E5275" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 13V17a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/>
+          <path d="M8 1h8l2 4H6L8 1z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
     <button id="o-cancelBtn" class="hidden o-kb w-full rounded-2xl py-3 text-sm font-bold tracking-widest mt-2"
       style="background:transparent;border:1px solid #1C1E32;color:#4E5275;" onclick="cancelEdit()">CANCEL EDIT</button>
   </div>
@@ -479,6 +489,14 @@
         <button id="c-submitBtn" onclick="submitShot()"
           class="c-kb c-tech text-sm font-bold tracking-widest py-4 rounded-xl"
           style="flex:1;background:#10B981;color:#121214;box-shadow:0 4px 12px rgba(16,185,129,.15);">Log Shot</button>
+        <button onclick="openScan()" class="c-kb w-14 rounded-xl flex items-center justify-center border"
+          style="background:#1E1E22;border-color:#2D2D34;" title="Scan Top Golf Screen">
+          <svg width="20" height="16" viewBox="0 0 24 20" fill="none" stroke="#6B7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 13V17a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/>
+            <path d="M8 1h8l2 4H6L8 1z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -567,9 +585,26 @@
 
 
 <!-- ═══════════════════════════════════════════
+     SCAN MODAL (shared)
+═══════════════════════════════════════════ -->
+<input type="file" id="scanFileInput" accept="image/*" capture="environment" style="display:none;" onchange="handleScanFile(this)">
+<div id="scanModal" class="modal-ov" onclick="closeScanModalBg(event)">
+  <div class="modal-sheet" style="padding:0;max-height:92vh;overflow-y:auto;">
+    <div class="flex items-center justify-between px-5 pt-5 pb-4">
+      <span class="text-xs font-black tracking-widest" style="color:#DDE0F5;">SCAN TOP GOLF SCREEN</span>
+      <button onclick="closeScanModal()" class="o-kb w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold"
+        style="background:#1C1E32;color:#4E5275;">✕</button>
+    </div>
+    <div id="scanModalBody"></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
      JAVASCRIPT
 ═══════════════════════════════════════════ -->
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
