@@ -553,6 +553,20 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════
+     DATE RANGE FILTER MODAL (shared)
+═══════════════════════════════════════════ -->
+<div id="dateModal" class="modal-ov" onclick="closeDateModalBg(event)">
+  <div class="modal-sheet" style="padding:0;max-height:92vh;overflow-y:auto;">
+    <div class="flex items-center justify-between px-5 pt-5 pb-4">
+      <span class="text-xs font-black tracking-widest" style="color:#DDE0F5;">DATE &amp; TIME FILTER</span>
+      <button onclick="closeDateModal()" class="o-kb w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold"
+        style="background:#1C1E32;color:#4E5275;">✕</button>
+    </div>
+    <div id="dateModalBody"></div>
+  </div>
+</div>
+
 
 <!-- ═══════════════════════════════════════════
      JAVASCRIPT

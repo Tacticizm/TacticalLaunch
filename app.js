@@ -40,7 +40,7 @@ const S = {
   shots:[], editingId:null,
   theme:'orbital', metric:false, pendingDelete:null,
   mode:'topgolf',
-  feedFilter:{ mode:'all', lie:'all', club:'all' },
+  feedFilter:{ mode:'all', lie:'all', club:'all', dateFrom:null, dateTo:null, hourFrom:0, hourTo:23 },
 };
 
 // ─── Boot ─────────────────────────────────────────────────────
@@ -631,6 +631,17 @@ function filteredFeedShots(){
     if (ff.mode !== 'all' && s.mode !== ff.mode) return false;
     if (ff.lie  !== 'all' && s.lie  !== ff.lie)  return false;
     if (ff.club !== 'all' && s.club !== ff.club) return false;
+    // Date-range filter
+    if (ff.dateFrom){
+      const from = new Date(ff.dateFrom + 'T00:00:00');
+      from.setHours(ff.hourFrom ?? 0, 0, 0, 0);
+      if (s.ts < from.getTime()) return false;
+    }
+    if (ff.dateTo){
+      const to = new Date(ff.dateTo + 'T00:00:00');
+      to.setHours(ff.hourTo ?? 23, 59, 59, 999);
+      if (s.ts > to.getTime()) return false;
+    }
     return true;
   });
 }
@@ -675,8 +686,14 @@ function orbital_renderFeedFilter(){
       </div>` : ''}
       <div class="flex items-center gap-2.5">
         <span class="text-xs font-black tracking-widest shrink-0" style="color:#4E5275;width:36px;">DATE</span>
-        <button class="o-kb flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold text-left"
-          style="background:#141526;border-color:#1C1E32;color:#4E5275;">📅 Set date & time range</button>
+        ${(()=>{
+          const hasDate = S.feedFilter.dateFrom;
+          const label = hasDate
+            ? `📅 ${S.feedFilter.dateFrom}${S.feedFilter.dateTo && S.feedFilter.dateTo!==S.feedFilter.dateFrom ? ' → '+S.feedFilter.dateTo : ''}`
+            : '📅 Set date & time range';
+          return `<button onclick="openDateFilter()" class="o-kb flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold text-left"
+            style="background:${hasDate?'rgba(56,189,248,.12)':'#141526'};border-color:${hasDate?'#38BDF8':'#1C1E32'};color:${hasDate?'#38BDF8':'#4E5275'};">${label}</button>`;
+        })()}
       </div>
     </div>`;
 }
@@ -716,7 +733,13 @@ function classic_renderFeedFilter(){
       </div>` : ''}
       <div class="flex items-center gap-2">
         <span class="c-tech font-bold shrink-0" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.3);width:40px;">DATE</span>
-        <button class="c-kb c-tech flex-1 py-1 px-2.5 rounded-lg border font-bold text-left" style="font-size:9px;background:#121214;border-color:#2D2D34;color:rgba(228,228,231,.25);">📅 Set date & time range</button>
+        ${(()=>{
+          const hasDate = S.feedFilter.dateFrom;
+          const label = hasDate
+            ? `📅 ${S.feedFilter.dateFrom}${S.feedFilter.dateTo && S.feedFilter.dateTo!==S.feedFilter.dateFrom ? ' → '+S.feedFilter.dateTo : ''}`
+            : '📅 Set date & time range';
+          return `<button onclick="openDateFilter()" class="c-kb c-tech flex-1 py-1 px-2.5 rounded-lg border font-bold text-left" style="font-size:9px;background:${hasDate?'rgba(16,185,129,.1)':'#121214'};border-color:${hasDate?'#10B981':'#2D2D34'};color:${hasDate?'#10B981':'rgba(228,228,231,.25)'};">${label}</button>`;
+        })()}
       </div>
     </div>`;
 }
@@ -1325,6 +1348,244 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
     ctx.fillStyle = (shot.lie || 'tee') === 'tee' ? '#3B82F6' : '#4ADE80';
     ctx.beginPath(); ctx.arc(tp.x, tp.y, 3.5, 0, Math.PI * 2); ctx.fill();
   }
+}
+
+// ─── Date Range Filter ────────────────────────────────────────
+
+let _cal = {
+  year: new Date().getFullYear(),
+  month: new Date().getMonth(),
+  from: null,     // 'YYYY-MM-DD'
+  to: null,       // 'YYYY-MM-DD'
+  hourFrom: 0,
+  hourTo: 23,
+};
+
+function fmtHour(h){
+  if (h === 0)  return '12 AM';
+  if (h < 12)   return `${h} AM`;
+  if (h === 12) return '12 PM';
+  return `${h - 12} PM`;
+}
+
+function openDateFilter(){
+  _cal.from     = S.feedFilter.dateFrom || null;
+  _cal.to       = S.feedFilter.dateTo   || null;
+  _cal.hourFrom = S.feedFilter.hourFrom ?? 0;
+  _cal.hourTo   = S.feedFilter.hourTo   ?? 23;
+  if (_cal.from){
+    const d = new Date(_cal.from + 'T00:00:00');
+    _cal.year = d.getFullYear(); _cal.month = d.getMonth();
+  } else {
+    const now = new Date();
+    _cal.year = now.getFullYear(); _cal.month = now.getMonth();
+  }
+  renderDateModal();
+  document.getElementById('dateModal').classList.add('open');
+}
+function closeDateModal(){
+  document.getElementById('dateModal').classList.remove('open');
+}
+function closeDateModalBg(e){
+  if (e.target === document.getElementById('dateModal')) closeDateModal();
+}
+
+function calPrevMonth(){
+  _cal.month--;
+  if (_cal.month < 0){ _cal.month = 11; _cal.year--; }
+  renderDateModal();
+}
+function calNextMonth(){
+  _cal.month++;
+  if (_cal.month > 11){ _cal.month = 0; _cal.year++; }
+  renderDateModal();
+}
+
+function calSelectDay(ymd){
+  if (!_cal.from || _cal.to){
+    // Start fresh: first click is FROM
+    _cal.from = ymd; _cal.to = null;
+  } else {
+    // Second click: TO (or swap if before FROM)
+    if (ymd < _cal.from){ _cal.from = ymd; _cal.to = null; }
+    else if (ymd === _cal.from){ _cal.to = null; } // deselect same day = single day
+    else { _cal.to = ymd; }
+  }
+  renderDateModal();
+}
+
+function calAdjustHour(which, delta){
+  if (which === 'from'){
+    _cal.hourFrom = Math.max(0, Math.min(23, _cal.hourFrom + delta));
+    if (_cal.hourFrom > _cal.hourTo) _cal.hourTo = _cal.hourFrom;
+  } else {
+    _cal.hourTo = Math.max(0, Math.min(23, _cal.hourTo + delta));
+    if (_cal.hourTo < _cal.hourFrom) _cal.hourFrom = _cal.hourTo;
+  }
+  renderDateModal();
+}
+
+function applyDateFilter(){
+  S.feedFilter.dateFrom = _cal.from;
+  S.feedFilter.dateTo   = _cal.to || _cal.from; // single day if no TO
+  S.feedFilter.hourFrom = _cal.hourFrom;
+  S.feedFilter.hourTo   = _cal.hourTo;
+  closeDateModal();
+  renderFeed();
+}
+
+function clearDateFilter(){
+  _cal.from = null; _cal.to = null; _cal.hourFrom = 0; _cal.hourTo = 23;
+  S.feedFilter.dateFrom = null;
+  S.feedFilter.dateTo   = null;
+  S.feedFilter.hourFrom = 0;
+  S.feedFilter.hourTo   = 23;
+  renderDateModal();
+  renderFeed();
+}
+
+function renderDateModal(){
+  const body = document.getElementById('dateModalBody');
+  if (!body) return;
+
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const DOWS   = ['S','M','T','W','T','F','S'];
+
+  const firstDow     = new Date(_cal.year, _cal.month, 1).getDay();
+  const daysInMonth  = new Date(_cal.year, _cal.month + 1, 0).getDate();
+  const todayYMD     = new Date().toISOString().slice(0, 10);
+
+  const pad = n => String(n).padStart(2,'0');
+  const toYMD = d => `${_cal.year}-${pad(_cal.month+1)}-${pad(d)}`;
+
+  const fmtDisplay = ymd => {
+    if (!ymd) return '—';
+    const [y, m, d] = ymd.split('-');
+    return `${MONTHS[parseInt(m,10)-1].slice(0,3)} ${parseInt(d,10)}, ${y}`;
+  };
+
+  // Build calendar cells
+  let cells = '';
+  for (let i = 0; i < firstDow; i++) cells += `<div></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++){
+    const ymd    = toYMD(d);
+    const isFrom = ymd === _cal.from;
+    const isTo   = ymd === _cal.to;
+    const inRange = _cal.from && _cal.to && ymd > _cal.from && ymd < _cal.to;
+    const isToday = ymd === todayYMD;
+    const hasRange = _cal.from && _cal.to && _cal.from !== _cal.to;
+
+    // Wrapper background for range strip
+    let wrapBg = 'transparent';
+    let wrapRadius = '0';
+    if (hasRange){
+      if (inRange)  { wrapBg = 'rgba(56,189,248,0.13)'; wrapRadius = '0'; }
+      if (isFrom)   { wrapBg = 'rgba(56,189,248,0.13)'; wrapRadius = '50% 0 0 50%'; }
+      if (isTo)     { wrapBg = 'rgba(56,189,248,0.13)'; wrapRadius = '0 50% 50% 0'; }
+    }
+
+    // Dot style
+    let dotBg = 'transparent', dotColor = isToday ? '#38BDF8' : '#DDE0F5', dotWeight = '400';
+    if (isToday && !isFrom && !isTo) dotWeight = '700';
+    if (isFrom || isTo){
+      dotBg = '#38BDF8'; dotColor = '#07080E'; dotWeight = '700';
+    }
+
+    cells += `
+      <div onclick="calSelectDay('${ymd}')"
+        style="display:flex;align-items:center;justify-content:center;height:38px;cursor:pointer;
+               background:${wrapBg};border-radius:${wrapRadius};">
+        <span style="display:flex;align-items:center;justify-content:center;
+          width:34px;height:34px;border-radius:50%;background:${dotBg};
+          color:${dotColor};font-size:13px;font-weight:${dotWeight};user-select:none;">${d}</span>
+      </div>`;
+  }
+
+  body.innerHTML = `
+    <!-- FROM / TO pills -->
+    <div class="flex items-center gap-2 px-4 pb-4">
+      <div class="flex-1 rounded-xl px-3 py-2.5"
+        style="border:1.5px solid ${_cal.from?'#38BDF8':'#1C1E32'};">
+        <p class="o-num text-xs font-black tracking-widest mb-0.5" style="color:#4E5275;">FROM</p>
+        <p class="o-num text-sm font-bold" style="color:${_cal.from?'#DDE0F5':'#252840'};">${fmtDisplay(_cal.from)}</p>
+      </div>
+      <svg width="14" height="10" viewBox="0 0 14 10" fill="none" style="flex-shrink:0;">
+        <path d="M0 5h12M8 1l4 4-4 4" stroke="#4E5275" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="flex-1 rounded-xl px-3 py-2.5"
+        style="border:1.5px solid ${_cal.to?'#38BDF8':'#1C1E32'};">
+        <p class="o-num text-xs font-black tracking-widest mb-0.5" style="color:#4E5275;">TO</p>
+        <p class="o-num text-sm font-bold" style="color:${_cal.to?'#DDE0F5':'#252840'};">${fmtDisplay(_cal.to)}</p>
+      </div>
+    </div>
+
+    <!-- Month nav -->
+    <div class="flex items-center justify-between px-4 mb-3">
+      <button onclick="calPrevMonth()" class="o-kb w-8 h-8 rounded-full flex items-center justify-center text-lg"
+        style="background:#141526;border:1px solid #1C1E32;color:#DDE0F5;">‹</button>
+      <span class="text-sm font-black tracking-wider text-white">${MONTHS[_cal.month]} ${_cal.year}</span>
+      <button onclick="calNextMonth()" class="o-kb w-8 h-8 rounded-full flex items-center justify-center text-lg"
+        style="background:#141526;border:1px solid #1C1E32;color:#DDE0F5;">›</button>
+    </div>
+
+    <!-- Day-of-week headers -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);padding:0 16px 4px;">
+      ${DOWS.map(d=>`<div style="text-align:center;font-size:11px;font-weight:900;letter-spacing:.08em;color:#252840;padding:3px 0;">${d}</div>`).join('')}
+    </div>
+
+    <!-- Day grid -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);padding:0 16px 16px;">
+      ${cells}
+    </div>
+
+    <!-- Hour range -->
+    <div style="border-top:1px solid #1C1E32;padding:16px 16px 12px;">
+      <p class="text-xs font-black tracking-widest mb-3" style="color:#4E5275;">HOUR RANGE</p>
+      <div class="flex items-center gap-3">
+        <div style="flex:1;">
+          <p class="text-xs font-black tracking-widest mb-2 text-center" style="color:#4E5275;">FROM</p>
+          <div class="flex items-center justify-between rounded-xl"
+            style="background:#141526;border:1px solid #1C1E32;padding:2px 4px;">
+            <button onclick="calAdjustHour('from',-1)"
+              class="o-kb flex items-center justify-center font-black text-xl"
+              style="width:36px;height:36px;color:#4E5275;">−</button>
+            <span class="o-num text-sm font-black text-white">${fmtHour(_cal.hourFrom)}</span>
+            <button onclick="calAdjustHour('from',1)"
+              class="o-kb flex items-center justify-center font-black text-xl"
+              style="width:36px;height:36px;color:#38BDF8;">+</button>
+          </div>
+        </div>
+        <svg width="14" height="10" viewBox="0 0 14 10" fill="none" style="flex-shrink:0;margin-top:20px;">
+          <path d="M0 5h12M8 1l4 4-4 4" stroke="#4E5275" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="flex:1;">
+          <p class="text-xs font-black tracking-widest mb-2 text-center" style="color:#4E5275;">TO</p>
+          <div class="flex items-center justify-between rounded-xl"
+            style="background:#141526;border:1px solid #1C1E32;padding:2px 4px;">
+            <button onclick="calAdjustHour('to',-1)"
+              class="o-kb flex items-center justify-center font-black text-xl"
+              style="width:36px;height:36px;color:#4E5275;">−</button>
+            <span class="o-num text-sm font-black text-white">${fmtHour(_cal.hourTo)}</span>
+            <button onclick="calAdjustHour('to',1)"
+              class="o-kb flex items-center justify-center font-black text-xl"
+              style="width:36px;height:36px;color:#38BDF8;">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-3 px-4 py-4" style="border-top:1px solid #1C1E32;">
+      <button onclick="clearDateFilter()"
+        class="o-kb flex-1 py-3 rounded-2xl text-xs font-black tracking-widest"
+        style="background:#141526;border:1px solid #1C1E32;color:#4E5275;">CLEAR</button>
+      <button onclick="applyDateFilter()"
+        class="o-kb flex-1 py-3 rounded-2xl text-xs font-black tracking-widest"
+        style="background:#38BDF8;color:#07080E;">APPLY FILTER</button>
+    </div>
+    <div style="height:max(env(safe-area-inset-bottom),8px);"></div>`;
 }
 
 // ─── Toast ────────────────────────────────────────────────────
