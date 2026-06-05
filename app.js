@@ -195,15 +195,17 @@ function updateUnitToggleUI(){
   }
 }
 function updateMetricUnitLabels(){
+  // Input fields always show US units — values are entered in US regardless of
+  // display setting. Metric conversion only applies to stats and feed display.
   const o = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
-  o('o-unit-carry', unitLabel('dist'));
-  o('o-unit-speed', unitLabel('speed'));
-  o('o-unit-apex',  unitLabel('height'));
-  o('o-unit-curve', unitLabel('curve') + ' ± L/R');
-  o('c-unit-carry', unitLabel('dist'));
-  o('c-unit-speed', unitLabel('speed'));
-  o('c-unit-apex',  unitLabel('height'));
-  o('c-unit-curve', unitLabel('curve'));
+  o('o-unit-carry', 'YDS');
+  o('o-unit-speed', 'MPH');
+  o('o-unit-apex',  'FT');
+  o('o-unit-curve', 'YDS ± L/R');
+  o('c-unit-carry', 'YDS');
+  o('c-unit-speed', 'MPH');
+  o('c-unit-apex',  'FT');
+  o('c-unit-curve', 'YDS');
 }
 
 // ─── Mode System ──────────────────────────────────────────────
