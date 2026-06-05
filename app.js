@@ -11,6 +11,7 @@ const META = {
 const LS_SHOTS = 'tl_v2';
 const LS_THEME = 'tl_theme';
 const LS_UNITS = 'tl_units';
+const LS_MODE  = 'tl_mode';
 
 // ─── State ────────────────────────────────────────────────────
 const S = {
@@ -18,6 +19,7 @@ const S = {
   vals:{ carry:'', speed:'', hang:'', apex:'', curve:'' },
   shots:[], editingId:null,
   theme:'orbital', metric:false, pendingDelete:null,
+  mode:'topgolf',
 };
 
 // ─── Boot ─────────────────────────────────────────────────────
@@ -25,6 +27,7 @@ const S = {
   migrateAndLoad();
   S.theme  = localStorage.getItem(LS_THEME) || 'orbital';
   S.metric = localStorage.getItem(LS_UNITS) === '1';
+  S.mode   = localStorage.getItem(LS_MODE)  || 'topgolf';
   applyTheme(S.theme, false);
   setFocus('carry'); setLie('tee'); setTab('all');
   renderAll();
@@ -142,6 +145,60 @@ function updateMetricUnitLabels(){
   o('c-unit-curve', unitLabel('curve'));
 }
 
+// ─── Mode System ──────────────────────────────────────────────
+function setMode(name){
+  S.mode = name;
+  localStorage.setItem(LS_MODE, name);
+  const prac = name === 'practice';
+  if (!prac){
+    // Clear practice-only fields and redirect focus if needed
+    S.vals.apex = ''; S.vals.curve = '';
+    refreshVal('apex'); refreshVal('curve');
+    if (S.focus === 'apex' || S.focus === 'curve'){
+      S.focus = 'carry';
+      orbital_applyFocus('carry');
+      classic_applyFocus('carry');
+    }
+  }
+  applyModeUI();
+}
+
+function applyModeUI(){
+  const prac = S.mode === 'practice';
+
+  // Show/hide apex+curve rows
+  const oRow = document.getElementById('o-apex-curve-row');
+  const cRow = document.getElementById('c-apex-curve-row');
+  if (oRow) oRow.style.display = prac ? '' : 'none';
+  if (cRow) cRow.style.display = prac ? '' : 'none';
+
+  // Tab highlighting
+  const MODES = ['topgolf','topscore','practice'];
+  for (const m of MODES){
+    const on = m === S.mode;
+    const oBtn = document.getElementById(`o-mode-${m}`);
+    if (oBtn){
+      oBtn.style.background   = on ? 'rgba(56,189,248,.12)' : 'transparent';
+      oBtn.style.borderColor  = on ? '#38BDF8' : '#1C1E32';
+      oBtn.style.color        = on ? '#38BDF8' : '#4E5275';
+    }
+    const cBtn = document.getElementById(`c-mode-${m}`);
+    if (cBtn){
+      cBtn.style.background   = on ? 'rgba(16,185,129,.10)' : 'transparent';
+      cBtn.style.borderColor  = on ? '#10B981' : '#2D2D34';
+      cBtn.style.color        = on ? '#10B981' : 'rgba(228,228,231,.4)';
+    }
+  }
+
+  // Minus button: only useful in practice (curve field)
+  const oMinus = document.getElementById('o-minusBtn');
+  const cMinus = document.getElementById('c-minusBtn');
+  if (!prac){
+    if (oMinus){ oMinus.style.color='#252840'; oMinus.style.borderColor='#1C1E32'; oMinus.style.pointerEvents='none'; }
+    if (cMinus){ cMinus.style.color='rgba(228,228,231,.3)'; cMinus.style.pointerEvents='none'; }
+  }
+}
+
 // ─── Theme System ─────────────────────────────────────────────
 function applyTheme(name, rerender=true){
   S.theme = name;
@@ -194,6 +251,7 @@ function classic_buildClubs(){
 
 // ─── Focus ────────────────────────────────────────────────────
 function setFocus(f){
+  if ((f === 'apex' || f === 'curve') && S.mode !== 'practice') return;
   S.focus = f;
   orbital_applyFocus(f); classic_applyFocus(f);
 }
@@ -710,6 +768,7 @@ function renderAll(){
   if(oa) oa.textContent=S.club.toUpperCase();
   const sh=document.getElementById('c-statsHeading');
   if(sh) sh.textContent=S.club.toUpperCase()+' PERFORMANCE';
+  applyModeUI();
 }
 
 // ─── Export / Import ──────────────────────────────────────────

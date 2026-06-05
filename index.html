@@ -175,6 +175,15 @@
       </div>
     </div>
     <div class="o-lime-rule mb-3"></div>
+    <!-- Mode tabs -->
+    <div class="flex gap-1.5 mb-3">
+      <button id="o-mode-topgolf"  onclick="setMode('topgolf')"
+        class="o-kb flex-1 py-2 rounded-xl border text-xs font-black tracking-widest">TOP GOLF</button>
+      <button id="o-mode-topscore" onclick="setMode('topscore')"
+        class="o-kb flex-1 py-2 rounded-xl border text-xs font-black tracking-widest">TOP SCORE</button>
+      <button id="o-mode-practice" onclick="setMode('practice')"
+        class="o-kb flex-1 py-2 rounded-xl border text-xs font-black tracking-widest">PRACTICE</button>
+    </div>
     <div id="o-clubBar" class="noscroll flex gap-2 overflow-x-auto"></div>
   </div>
 
@@ -199,7 +208,7 @@
           <p class="text-xs mt-2 font-bold" style="color:#252840;">SEC</p>
         </div>
       </div>
-      <div class="grid grid-cols-2">
+      <div id="o-apex-curve-row" class="grid grid-cols-2">
         <div id="o-box-apex" class="o-mfield" onclick="setFocus('apex')">
           <p class="text-xs font-black tracking-widest mb-3" style="color:#4E5275;">APEX</p>
           <div id="o-val-apex" class="o-mval">—</div>
@@ -353,6 +362,15 @@
         </button>
       </div>
     </div>
+    <!-- Mode tabs -->
+    <div class="flex gap-1.5 mb-2">
+      <button id="c-mode-topgolf"  onclick="setMode('topgolf')"
+        class="c-kb c-tech flex-1 py-1.5 rounded-xl border text-xs font-bold tracking-widest">TOP GOLF</button>
+      <button id="c-mode-topscore" onclick="setMode('topscore')"
+        class="c-kb c-tech flex-1 py-1.5 rounded-xl border text-xs font-bold tracking-widest">TOP SCORE</button>
+      <button id="c-mode-practice" onclick="setMode('practice')"
+        class="c-kb c-tech flex-1 py-1.5 rounded-xl border text-xs font-bold tracking-widest">PRACTICE</button>
+    </div>
     <div id="c-clubBar" class="noscroll flex gap-2 overflow-x-auto py-1"></div>
   </div>
 
@@ -390,8 +408,8 @@
       </div>
     </div>
 
-    <!-- Metric Boxes Row 2 -->
-    <div class="grid grid-cols-2 gap-2">
+    <!-- Metric Boxes Row 2 (Practice only) -->
+    <div id="c-apex-curve-row" class="grid grid-cols-2 gap-2">
       <div id="c-box-apex" onclick="setFocus('apex')"
         class="c-mbox bg-[#1E1E22] border-2 border-transparent rounded-xl p-2.5 flex flex-col justify-between cursor-pointer"
         style="height:64px;">
