@@ -1413,22 +1413,48 @@ async function runOCR(file){
 }
 
 function parseScanText(raw){
-  // Normalise: uppercase, collapse whitespace, keep dots/digits
+  // Normalise: uppercase, collapse whitespace
   const t = raw.toUpperCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
 
-  const near = (label, minVal, maxVal, decimal) => {
-    // Search for label then grab the first number within 40 chars
-    const re = new RegExp(label + '[^\\d]{0,40}?(\\d{1,3}(?:\\.\\d{1,2})?)');
+  // Find a number within 50 chars after a label, validated against a range
+  const near = (label, minVal, maxVal) => {
+    const re = new RegExp(label + '[^\\d]{0,50}?(\\d{1,3}(?:\\.\\d{1,2})?)');
     const m  = t.match(re);
     if (!m) return null;
     const v = parseFloat(m[1]);
     return (v >= minVal && v <= maxVal) ? v : null;
   };
 
+  // Curve needs direction: look for L/R before or after the number
+  const parseCurve = () => {
+    // Try: CURVE ... [L|R] ... number  OR  CURVE ... number ... [L|R]
+    const patterns = [
+      /CURVE[^LR\d]{0,30}([LR])\s*(\d{1,2}(?:\.\d{1,2})?)/,  // CURVE ... L 3.5
+      /(?:LATERAL|CURV)[^LR\d]{0,30}([LR])\s*(\d{1,2}(?:\.\d{1,2})?)/,
+      /CURVE[^LR\d]{0,30}(\d{1,2}(?:\.\d{1,2})?)\s*([LR])/,  // CURVE ... 3.5 L
+    ];
+    for (const re of patterns){
+      const m = t.match(re);
+      if (m){
+        let dir, num;
+        if (m[1] === 'L' || m[1] === 'R'){ dir = m[1]; num = parseFloat(m[2]); }
+        else { num = parseFloat(m[1]); dir = m[2]; }
+        if (!isNaN(num) && num <= 100){
+          return dir === 'L' ? -num : num;
+        }
+      }
+    }
+    // Fallback: just a number near CURVE with no direction (return positive)
+    const fallback = near('CURVE', 0, 100);
+    return fallback != null ? fallback : null;
+  };
+
   return {
-    carry: near('CARRY',         10, 400, true),
-    speed: near('(?:BALL\\s*)?SPEED', 10, 250, true),
-    hang:  near('HANG',           0,  20, true),
+    carry: near('CARRY',                       10, 400),
+    speed: near('(?:BALL\\s*)?SPEED',          10, 250),
+    hang:  near('HANG',                         0,  20),
+    apex:  near('(?:APEX|PEAK\\s*HEIGHT|HEIGHT(?!\\s*[A-Z]))', 1, 400),
+    curve: parseCurve(),
   };
 }
 
@@ -1442,13 +1468,16 @@ function closeScanModalBg(e){
 
 function scanApply(){
   const r = _scan.result;
-  // Apply detected values to the input state
+  const hasPractice = r.apex != null || r.curve != null;
+  // Auto-set mode before applying so apex/curve fields become editable
+  const targetMode = hasPractice ? 'practice' : 'topgolf';
+  if (S.mode !== targetMode) setMode(targetMode);
+  // Apply all detected values
   if (r.carry != null){ S.vals.carry = String(r.carry); refreshVal('carry'); }
   if (r.speed != null){ S.vals.speed = String(r.speed); refreshVal('speed'); }
   if (r.hang  != null){ S.vals.hang  = String(r.hang);  refreshVal('hang');  }
-  // Clear practice fields and set mode to topgolf (TG screen has no apex/curve)
-  S.vals.apex = ''; S.vals.curve = ''; refreshVal('apex'); refreshVal('curve');
-  if (S.mode !== 'topgolf') setMode('topgolf');
+  if (r.apex  != null){ S.vals.apex  = String(r.apex);  refreshVal('apex');  }
+  if (r.curve != null){ S.vals.curve = String(r.curve); refreshVal('curve'); }
   closeScanModal();
   setFocus('carry');
   toast('Stats loaded — review and log!', 'ok');
@@ -1489,12 +1518,25 @@ function renderScanModal(){
   // DONE state
   const r  = _scan.result;
   const ok = r.carry != null || r.speed != null || r.hang != null;
+  const hasPractice = r.apex != null || r.curve != null;
+
+  const fmtCurveDetected = v => {
+    if (v == null) return `<span class="text-sm font-bold" style="color:#252840;">—</span>`;
+    const abs  = Math.abs(v).toFixed(1);
+    const dir  = v > 0 ? 'R' : v < 0 ? 'L' : '';
+    const disp = dir ? `${dir} ${abs}` : abs;
+    const col  = v > 0 ? '#60A5FA' : v < 0 ? '#FB923C' : '#DDE0F5';
+    return `<span class="o-num text-xl font-black" style="color:${col};">${disp}</span> <span class="text-xs" style="color:#4E5275;">YDS</span>`;
+  };
 
   body.innerHTML = `
-    ${_scan.imgUrl ? `<img src="${_scan.imgUrl}" alt="scan" style="width:100%;max-height:180px;object-fit:cover;object-position:bottom;border-bottom:1px solid #1C1E32;">` : ''}
+    ${_scan.imgUrl ? `<img src="${_scan.imgUrl}" alt="scan" style="width:100%;max-height:170px;object-fit:cover;object-position:bottom;border-bottom:1px solid #1C1E32;">` : ''}
     <div class="px-5 pt-5 pb-2">
-      <p class="text-xs font-black tracking-widest mb-4" style="color:#4E5275;">DETECTED STATS</p>
-      <div class="grid grid-cols-3 gap-3 mb-5">
+      <div class="flex items-center justify-between mb-4">
+        <p class="text-xs font-black tracking-widest" style="color:#4E5275;">DETECTED STATS</p>
+        ${hasPractice ? `<span class="text-xs font-black tracking-widest px-2 py-0.5 rounded-full" style="background:rgba(74,222,128,.12);color:#4ADE80;">PRACTICE MODE</span>` : `<span class="text-xs font-black tracking-widest px-2 py-0.5 rounded-full" style="background:rgba(56,189,248,.12);color:#38BDF8;">TOP GOLF MODE</span>`}
+      </div>
+      <div class="grid grid-cols-3 gap-2 mb-3">
         <div class="rounded-2xl p-3 text-center" style="background:#141526;border:1px solid ${r.carry!=null?'#38BDF8':'#1C1E32'};">
           <p class="text-xs font-black tracking-widest mb-2" style="color:#4E5275;">CARRY</p>
           ${fmtVal(r.carry,'YDS')}
@@ -1506,6 +1548,16 @@ function renderScanModal(){
         <div class="rounded-2xl p-3 text-center" style="background:#141526;border:1px solid ${r.hang!=null?'#38BDF8':'#1C1E32'};">
           <p class="text-xs font-black tracking-widest mb-2" style="color:#4E5275;">HANG</p>
           ${fmtVal(r.hang,'SEC')}
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="rounded-2xl p-3 text-center" style="background:#141526;border:1px solid ${r.apex!=null?'#4ADE80':'#1C1E32'};">
+          <p class="text-xs font-black tracking-widest mb-2" style="color:#4E5275;">APEX HGT</p>
+          ${fmtVal(r.apex,'FT')}
+        </div>
+        <div class="rounded-2xl p-3 text-center" style="background:#141526;border:1px solid ${r.curve!=null?'#4ADE80':'#1C1E32'};">
+          <p class="text-xs font-black tracking-widest mb-2" style="color:#4E5275;">CURVE</p>
+          ${fmtCurveDetected(r.curve)}
         </div>
       </div>
       ${!ok ? `<p class="text-xs text-center mb-4" style="color:#FF5500;">No stats detected — try again closer to the stats strip.</p>` : ''}
