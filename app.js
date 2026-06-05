@@ -183,15 +183,18 @@ function toggleUnits(){
   renderStats(); renderFeed();
 }
 function updateUnitToggleUI(){
-  const label = S.metric ? 'METRIC' : 'US';
+  const label = S.metric ? 'MET' : 'US';
   const oBtn = document.getElementById('o-unitToggle');
   const cBtn = document.getElementById('c-unitToggle');
-  if (oBtn) oBtn.textContent = label;
+  if (oBtn){
+    oBtn.textContent   = label;
+    oBtn.style.color       = S.metric ? '#4ADE80' : '#38BDF8';
+    oBtn.style.borderColor = S.metric ? 'rgba(74,222,128,.3)' : 'rgba(56,189,248,.25)';
+  }
   if (cBtn){
-    cBtn.textContent = 'VIEW: ' + label;
-    cBtn.style.background = S.metric ? 'rgba(16,185,129,.1)'  : 'rgba(99,102,241,.1)';
-    cBtn.style.color       = S.metric ? '#10B981'              : '#6366F1';
-    cBtn.style.borderColor = S.metric ? 'rgba(16,185,129,.2)' : 'rgba(99,102,241,.2)';
+    cBtn.textContent   = label;
+    cBtn.style.color       = S.metric ? '#10B981' : '#6366F1';
+    cBtn.style.borderColor = S.metric ? 'rgba(16,185,129,.25)' : 'rgba(99,102,241,.25)';
   }
 }
 function updateMetricUnitLabels(){
