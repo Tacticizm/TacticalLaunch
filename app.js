@@ -863,11 +863,11 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
   const apexYds  = apexFt / 3;             // feet → yards
   const curveYds = shot.curve  || 0;
 
-  // Camera: standing at origin, looking down the fairway (+Z)
-  const BEHIND  = 10;       // yards behind tee
+  // Camera: close behind tee so arc fills canvas, tee sits near bottom
+  const BEHIND  = 3;        // yards behind tee (was 10 — close cam = tee lower in frame)
   const EYE_Y   = 1.8;      // yards eye height
-  const FL      = W * 0.88; // focal length (pixels)
-  const HOR_Y   = H * 0.40; // horizon at 40% from top
+  const FL      = W * 0.65; // focal length (pixels)
+  const HOR_Y   = H * 0.50; // horizon at 50% from top
 
   function proj(wx, wy, wz){
     const dz = wz + BEHIND;
@@ -901,13 +901,15 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
   ctx.fillRect(0, HOR_Y - 8, W, 16);
 
   // ── Fairway grid ─────────────────────────────────────────────
-  const FW   = Math.max(20, carry * 0.28); // half-width yards
+  const FW   = 8;  // fixed half-width yards (close camera needs narrow grid)
   const step = carry > 220 ? 50 : 25;
+  // Minimum Z where outer lane lines stay within canvas width
+  const laneStartZ = Math.max(0.5, (FW * 2 * FL / W) - BEHIND);
 
   // Longitudinal lines
   const laneXs = [-FW, -FW*0.5, 0, FW*0.5, FW];
   for (const lx of laneXs){
-    const p0 = proj(lx, 0, 0.3);
+    const p0 = proj(lx, 0, laneStartZ);
     const p1 = proj(lx, 0, carry * 1.5);
     if (!p0 || !p1) continue;
     ctx.strokeStyle = lx === 0 ? 'rgba(56,189,248,0.09)' : 'rgba(74,222,128,0.055)';
@@ -917,7 +919,8 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
 
   // Cross lines + yardage labels
   for (let d = step; d <= carry * 1.15; d += step){
-    const pL = proj(-FW, 0, d), pR = proj(FW, 0, d);
+    const crossW = Math.min(FW, d * FW / (laneStartZ + BEHIND)); // clip near lines
+    const pL = proj(-crossW, 0, d), pR = proj(crossW, 0, d);
     if (!pL || !pR) continue;
     const major = d % 100 === 0;
     ctx.strokeStyle = `rgba(74,222,128,${major ? 0.11 : 0.055})`;
