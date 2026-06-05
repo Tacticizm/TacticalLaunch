@@ -504,6 +504,36 @@
 
 
 <!-- ═══════════════════════════════════════════
+     TRAJECTORY MODAL (shared)
+═══════════════════════════════════════════ -->
+<div id="trajModal" class="modal-ov" onclick="closeTrajModalBg(event)">
+  <div class="modal-sheet" style="height:86vh;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 pt-4 pb-3" style="border-bottom:1px solid #1C1E32;flex-shrink:0;">
+      <div>
+        <p id="traj-club" class="text-base font-black tracking-widest text-white leading-none mb-1.5"></p>
+        <span id="traj-lie" class="text-xs font-black tracking-widest px-2 py-0.5 rounded-full"></span>
+      </div>
+      <button onclick="closeTrajModal()"
+        class="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold"
+        style="background:#1C1E32;color:#4E5275;">✕</button>
+    </div>
+    <!-- Stats -->
+    <div id="traj-stats" class="flex justify-around px-4 py-2.5" style="border-bottom:1px solid #1C1E32;flex-shrink:0;"></div>
+    <!-- Canvas -->
+    <div id="traj-wrap" style="flex:1;position:relative;overflow:hidden;">
+      <canvas id="trajCanvas" style="position:absolute;inset:0;width:100%;height:100%;display:block;"></canvas>
+    </div>
+    <!-- Footer -->
+    <div class="py-2 text-center" style="border-top:1px solid #0D0E19;flex-shrink:0;">
+      <p class="o-num" style="font-size:8px;letter-spacing:4px;color:#1C1E32;">BALL FLIGHT · FIRST PERSON POV</p>
+    </div>
+    <div style="height:max(env(safe-area-inset-bottom),10px);flex-shrink:0;"></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
      JAVASCRIPT
 ═══════════════════════════════════════════ -->
 

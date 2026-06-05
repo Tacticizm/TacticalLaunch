@@ -570,6 +570,14 @@ function orbital_renderFeed(){
             </div>
             <div class="flex items-center gap-2">
               <span class="o-num text-xs font-bold" style="color:#252840;">${relTime(s.ts)}</span>
+              <button onclick="openTrajectory(${s.id})" class="o-kb w-7 h-7 rounded-xl flex items-center justify-center"
+                style="background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.18);" title="View Trajectory">
+                <svg width="13" height="11" viewBox="0 0 26 22" fill="none" stroke="#38BDF8"
+                  stroke-width="2.5" stroke-linecap="round">
+                  <path d="M2 20 C6 4 20 1 24 20"/>
+                  <circle cx="24" cy="20" r="2.5" fill="#38BDF8" stroke="none"/>
+                </svg>
+              </button>
               <button onclick="editShot(${s.id})" class="o-kb w-7 h-7 rounded-xl flex items-center justify-center"
                 style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#38BDF8"
@@ -661,6 +669,13 @@ function classic_renderFeed(){
             <span style="font-size:9px;color:rgba(228,228,231,.4);"> ${ul_speed}</span>
           </div>
           <div class="flex items-center">
+            <button onclick="openTrajectory(${s.id})" class="c-kb p-1.5" style="color:rgba(56,189,248,.65);" title="View Trajectory">
+              <svg width="14" height="14" viewBox="0 0 26 22" fill="none" stroke="currentColor"
+                stroke-width="2.5" stroke-linecap="round">
+                <path d="M2 20 C6 4 20 1 24 20"/>
+                <circle cx="24" cy="20" r="2.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </button>
             <button onclick="editShot(${s.id})" class="c-kb p-1.5" style="color:rgba(99,102,241,.7);">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -743,6 +758,309 @@ function closeDeleteModalBg(e){ if(e.target===document.getElementById('deleteMod
 function openThemeModal()  { document.getElementById('themeModal').classList.add('open'); }
 function closeThemeModal() { document.getElementById('themeModal').classList.remove('open'); }
 function closeThemeModalBg(e){ if(e.target===document.getElementById('themeModal')) closeThemeModal(); }
+
+// ─── Trajectory Visualization ─────────────────────────────────
+
+let _trajRAF = null;
+
+function openTrajectory(id){
+  const shot = S.shots.find(s => s.id === id);
+  if (!shot) return;
+
+  // Club / lie header
+  const clubEl = document.getElementById('traj-club');
+  const lieEl  = document.getElementById('traj-lie');
+  if (clubEl) clubEl.textContent = shot.club;
+  if (lieEl){
+    const isTee = (shot.lie || 'tee') === 'tee';
+    lieEl.textContent      = isTee ? 'OFF TEE' : 'OFF GRASS';
+    lieEl.style.color      = isTee ? '#3B82F6' : '#4ADE80';
+    lieEl.style.background = isTee ? 'rgba(59,130,246,.15)' : 'rgba(74,222,128,.15)';
+  }
+
+  // Stats row
+  const statsEl = document.getElementById('traj-stats');
+  if (statsEl){
+    const fCarry = shot.carry != null ? dispVal(shot.carry,'dist')   : '—';
+    const fApex  = shot.apex  != null ? dispVal(shot.apex,'height')  : '—';
+    let   fCrv   = '—';
+    if (shot.curve != null){
+      const abs = dispVal(Math.abs(shot.curve),'curve');
+      fCrv = shot.curve > 0 ? `R ${abs}` : shot.curve < 0 ? `L ${abs}` : '0';
+    }
+    const mkStat = (label, val, unit) =>
+      `<div style="text-align:center;">
+        <p class="o-num" style="font-size:8px;letter-spacing:2px;color:#4E5275;">${label}</p>
+        <p class="o-num" style="font-size:20px;font-weight:700;color:#DDE0F5;line-height:1.1;">${val}</p>
+        <p class="o-num" style="font-size:8px;color:#252840;">${unit}</p>
+      </div>`;
+    statsEl.innerHTML =
+      mkStat('CARRY', fCarry, unitLabel('dist')) +
+      mkStat('APEX',  fApex,  unitLabel('height')) +
+      mkStat('CURVE', fCrv,   unitLabel('curve'));
+  }
+
+  document.getElementById('trajModal').classList.add('open');
+  // Give the modal transition time to open before sizing canvas
+  setTimeout(() => animateTrajectory(shot), 120);
+}
+
+function closeTrajModal(){
+  if (_trajRAF){ cancelAnimationFrame(_trajRAF); _trajRAF = null; }
+  document.getElementById('trajModal').classList.remove('open');
+}
+function closeTrajModalBg(e){
+  if (e.target === document.getElementById('trajModal')) closeTrajModal();
+}
+
+function animateTrajectory(shot){
+  if (_trajRAF){ cancelAnimationFrame(_trajRAF); _trajRAF = null; }
+  const canvas = document.getElementById('trajCanvas');
+  const wrap   = document.getElementById('traj-wrap');
+  if (!canvas || !wrap) return;
+
+  // Size canvas to physical pixels for crisp rendering
+  const dpr = window.devicePixelRatio || 1;
+  const W   = wrap.clientWidth;
+  const H   = wrap.clientHeight;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const FLY_MS  = 2400;
+  const HOLD_MS = 2200;
+  const START   = performance.now();
+
+  function frame(now){
+    if (!document.getElementById('trajModal').classList.contains('open')){ return; }
+    const elapsed = now - START;
+    let progress, postLand;
+    if (elapsed < FLY_MS){
+      const t = elapsed / FLY_MS;
+      // ease-in-out
+      progress = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+      postLand = 0;
+    } else {
+      progress = 1;
+      postLand = elapsed - FLY_MS;
+    }
+    trajDraw(ctx, W, H, shot, progress, postLand);
+    if (elapsed < FLY_MS + HOLD_MS){
+      _trajRAF = requestAnimationFrame(frame);
+    } else {
+      _trajRAF = null;
+      setTimeout(() => animateTrajectory(shot), 300);
+    }
+  }
+  _trajRAF = requestAnimationFrame(frame);
+}
+
+function trajDraw(ctx, W, H, shot, progress, postLand){
+  // ── Scene parameters ──────────────────────────────────────────
+  const carry    = shot.carry  || 200;
+  const apexFt   = shot.apex   != null ? shot.apex : carry * 0.45;
+  const apexYds  = apexFt / 3;             // feet → yards
+  const curveYds = shot.curve  || 0;
+
+  // Camera: standing at origin, looking down the fairway (+Z)
+  const BEHIND  = 10;       // yards behind tee
+  const EYE_Y   = 1.8;      // yards eye height
+  const FL      = W * 0.88; // focal length (pixels)
+  const HOR_Y   = H * 0.40; // horizon at 40% from top
+
+  function proj(wx, wy, wz){
+    const dz = wz + BEHIND;
+    if (dz < 0.05) return null;
+    const s = FL / dz;
+    return { x: W/2 + wx*s, y: HOR_Y + (EYE_Y - wy)*s, s };
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Sky ───────────────────────────────────────────────────────
+  const sky = ctx.createLinearGradient(0, 0, 0, HOR_Y + 10);
+  sky.addColorStop(0, '#04050D');
+  sky.addColorStop(1, '#080F1E');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, HOR_Y + 2);
+
+  // ── Ground ────────────────────────────────────────────────────
+  const gnd = ctx.createLinearGradient(0, HOR_Y, 0, H);
+  gnd.addColorStop(0, '#061208');
+  gnd.addColorStop(1, '#020804');
+  ctx.fillStyle = gnd;
+  ctx.fillRect(0, HOR_Y, W, H - HOR_Y);
+
+  // ── Horizon glow ──────────────────────────────────────────────
+  const hgl = ctx.createLinearGradient(0, HOR_Y - 8, 0, HOR_Y + 8);
+  hgl.addColorStop(0, 'rgba(56,189,248,0)');
+  hgl.addColorStop(0.5, 'rgba(56,189,248,0.08)');
+  hgl.addColorStop(1, 'rgba(56,189,248,0)');
+  ctx.fillStyle = hgl;
+  ctx.fillRect(0, HOR_Y - 8, W, 16);
+
+  // ── Fairway grid ─────────────────────────────────────────────
+  const FW   = Math.max(20, carry * 0.28); // half-width yards
+  const step = carry > 220 ? 50 : 25;
+
+  // Longitudinal lines
+  const laneXs = [-FW, -FW*0.5, 0, FW*0.5, FW];
+  for (const lx of laneXs){
+    const p0 = proj(lx, 0, 0.3);
+    const p1 = proj(lx, 0, carry * 1.5);
+    if (!p0 || !p1) continue;
+    ctx.strokeStyle = lx === 0 ? 'rgba(56,189,248,0.09)' : 'rgba(74,222,128,0.055)';
+    ctx.lineWidth   = lx === 0 ? 0.8 : 0.5;
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  }
+
+  // Cross lines + yardage labels
+  for (let d = step; d <= carry * 1.15; d += step){
+    const pL = proj(-FW, 0, d), pR = proj(FW, 0, d);
+    if (!pL || !pR) continue;
+    const major = d % 100 === 0;
+    ctx.strokeStyle = `rgba(74,222,128,${major ? 0.11 : 0.055})`;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(pL.x, pL.y); ctx.lineTo(pR.x, pR.y); ctx.stroke();
+    if (major){
+      const pm = proj(0, 0, d);
+      if (pm){
+        const fs = Math.max(7, Math.min(12, pm.s * 5.5));
+        ctx.fillStyle = 'rgba(74,222,128,0.22)';
+        ctx.font      = `${fs}px "Roboto Mono",monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`${d}`, pm.x, pm.y - 3);
+      }
+    }
+  }
+
+  // ── Landing target ────────────────────────────────────────────
+  const lpj = proj(curveYds, 0, carry);
+  if (lpj){
+    const rx = 20 * lpj.s, ry = 6 * lpj.s;
+    const tg = ctx.createRadialGradient(lpj.x, lpj.y, 0, lpj.x, lpj.y, rx * 2.8);
+    tg.addColorStop(0, 'rgba(56,189,248,0.10)');
+    tg.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.fillStyle = tg;
+    ctx.beginPath();
+    ctx.ellipse(lpj.x, lpj.y, rx*2.8, ry*2.8, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56,189,248,0.20)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.ellipse(lpj.x, lpj.y, rx, ry, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  // ── Build trajectory points ───────────────────────────────────
+  const STEPS = 100;
+  const pts   = [];
+  for (let i = 0; i <= STEPS; i++){
+    const t  = i / STEPS;
+    const wx = curveYds * t;
+    const wy = 4 * apexYds * t * (1 - t);
+    const wz = carry * t;
+    const p  = proj(wx, wy, wz);
+    if (p) pts.push({ ...p, t });
+  }
+
+  const maxI = Math.max(1, Math.round(progress * pts.length));
+  const vis  = pts.slice(0, maxI);
+
+  if (vis.length > 1){
+    // Ground shadow (dashed)
+    ctx.save();
+    ctx.setLineDash([2, 7]);
+    ctx.lineWidth   = 0.7;
+    ctx.strokeStyle = 'rgba(56,189,248,0.11)';
+    ctx.beginPath();
+    let first = true;
+    for (let i = 0; i <= Math.round(progress * STEPS); i++){
+      const t  = i / STEPS;
+      const p  = proj(curveYds * t, 0, carry * t);
+      if (!p) continue;
+      first ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      first = false;
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // Outer glow layers
+    for (let g = 3; g >= 0; g--){
+      ctx.beginPath();
+      ctx.moveTo(vis[0].x, vis[0].y);
+      for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x, vis[i].y);
+      ctx.strokeStyle = `rgba(56,189,248,${0.04 + g*0.035})`;
+      ctx.lineWidth   = 1.8 + g * 2.8;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // Core arc line
+    ctx.beginPath();
+    ctx.moveTo(vis[0].x, vis[0].y);
+    for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x, vis[i].y);
+    ctx.strokeStyle = 'rgba(56,189,248,0.88)';
+    ctx.lineWidth   = 1.6;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // ── Ball ──────────────────────────────────────────────────────
+  if (vis.length){
+    const b  = vis[vis.length - 1];
+    const sz = Math.max(2.5, Math.min(12, b.s * 3.2));
+
+    // Outer glow
+    const glw = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, sz * 7);
+    glw.addColorStop(0,   'rgba(255,255,255,0.50)');
+    glw.addColorStop(0.2, 'rgba(56,189,248,0.28)');
+    glw.addColorStop(1,   'rgba(56,189,248,0)');
+    ctx.beginPath(); ctx.fillStyle = glw;
+    ctx.arc(b.x, b.y, sz * 7, 0, Math.PI * 2); ctx.fill();
+
+    // Ball body (radial highlight)
+    const bd = ctx.createRadialGradient(b.x - sz*0.3, b.y - sz*0.3, 0, b.x, b.y, sz);
+    bd.addColorStop(0, '#ffffff');
+    bd.addColorStop(1, '#c8e6f8');
+    ctx.beginPath(); ctx.fillStyle = bd;
+    ctx.arc(b.x, b.y, Math.max(2, sz), 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ── Impact rings (expand after landing) ───────────────────────
+  if (progress >= 1 && lpj && postLand > 0){
+    for (let r = 1; r <= 3; r++){
+      const delay  = (r - 1) * 200;
+      const rp     = Math.min(1, Math.max(0, (postLand - delay) / 750));
+      if (rp <= 0) continue;
+      const rx     = 24 * r * lpj.s * rp;
+      const ry     = 8  * r * lpj.s * rp;
+      const alpha  = (1 - rp) * 0.55;
+      ctx.strokeStyle = `rgba(56,189,248,${alpha})`;
+      ctx.lineWidth   = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(lpj.x, lpj.y, Math.max(0.1, rx), Math.max(0.1, ry), 0, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    // Carry label floating above landing
+    if (lpj && shot.carry != null){
+      const label = `${dispVal(shot.carry,'dist')} ${unitLabel('dist')}`;
+      const fs    = Math.max(9, Math.min(14, lpj.s * 6));
+      ctx.font      = `bold ${fs}px "Roboto Mono",monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(56,189,248,0.65)';
+      ctx.fillText(label, lpj.x, lpj.y - 14 * lpj.s - 6);
+    }
+  }
+
+  // ── Tee/origin dot ────────────────────────────────────────────
+  const tp = proj(0, 0, 0.2);
+  if (tp){
+    ctx.fillStyle = (shot.lie || 'tee') === 'tee' ? '#3B82F6' : '#4ADE80';
+    ctx.beginPath(); ctx.arc(tp.x, tp.y, 3.5, 0, Math.PI * 2); ctx.fill();
+  }
+}
 
 // ─── Toast ────────────────────────────────────────────────────
 let _tt;
