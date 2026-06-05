@@ -1008,6 +1008,37 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
     ctx.stroke();
   }
 
+  // ── Apex marker ───────────────────────────────────────────────
+  (function(){
+    const aT  = 0.5;
+    const apj = proj(curveYds * aT * aT, apexYds, carry * aT);
+    if (!apj) return;
+    // Fade in once the ball has passed the apex
+    const fade = Math.min(1, Math.max(0, (progress - 0.44) / 0.10));
+    if (fade <= 0) return;
+
+    // Glow halo
+    const gr = ctx.createRadialGradient(apj.x, apj.y, 0, apj.x, apj.y, 16);
+    gr.addColorStop(0, `rgba(56,189,248,${0.45 * fade})`);
+    gr.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.beginPath(); ctx.fillStyle = gr;
+    ctx.arc(apj.x, apj.y, 16, 0, Math.PI * 2); ctx.fill();
+
+    // White dot
+    ctx.beginPath();
+    ctx.fillStyle = `rgba(255,255,255,${0.95 * fade})`;
+    ctx.arc(apj.x, apj.y, 3, 0, Math.PI * 2); ctx.fill();
+
+    // Height label above the dot
+    const lbl = shot.apex != null
+      ? `${dispVal(shot.apex, 'height')} ${unitLabel('height')}`
+      : `~${Math.round(apexFt)} ${unitLabel('height')}`;
+    ctx.font = 'bold 10px "Roboto Mono",monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = `rgba(56,189,248,${0.9 * fade})`;
+    ctx.fillText(lbl, apj.x, apj.y - 10);
+  })();
+
   // ── Ball ──────────────────────────────────────────────────────
   if (vis.length){
     const b  = vis[vis.length - 1];
