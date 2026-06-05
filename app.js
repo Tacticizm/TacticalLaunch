@@ -733,6 +733,9 @@ function orbital_renderFeed(){
     const lieC=lie==='tee'?'#3B82F6':'#4ADE80';
     const lieL=lie==='tee'?'TEE':'GRASS';
     const lieBg=lie==='tee'?'rgba(59,130,246,.15)':'rgba(74,222,128,.15)';
+    const modeAbbr=s.mode==='topgolf'?'TG':s.mode==='topscore'?'TS':s.mode==='practice'?'P':'';
+    const modeBg=s.mode==='topgolf'?'rgba(56,189,248,.12)':s.mode==='topscore'?'rgba(245,158,11,.12)':'rgba(74,222,128,.12)';
+    const modeCol=s.mode==='topgolf'?'#38BDF8':s.mode==='topscore'?'#F59E0B':'#4ADE80';
     const fCarry=s.carry!=null ? dispVal(s.carry,'dist') : null;
     const fSpeed=s.speed!=null ? dispVal(s.speed,'speed') : null;
     const fApex =s.apex !=null ? dispVal(s.apex,'height') : null;
@@ -747,6 +750,7 @@ function orbital_renderFeed(){
               <span class="text-sm font-black text-white">${s.club}</span>
               <span class="text-xs font-black px-2 py-0.5 rounded-full tracking-widest"
                 style="background:${lieBg};color:${lieC};">${lieL}</span>
+              ${modeAbbr?`<span class="text-xs font-black px-2 py-0.5 rounded-full tracking-widest" style="background:${modeBg};color:${modeCol};">${modeAbbr}</span>`:''}
             </div>
             <div class="flex items-center gap-2">
               <span class="o-num text-xs font-bold" style="color:#252840;">${relTime(s.ts)}</span>
@@ -825,6 +829,9 @@ function classic_renderFeed(){
     const lie=s.lie||'tee';
     const lieL=lie==='tee'?'TEE':'GRS';
     const lieC=lie==='tee'?'color:#3B82F6;background:rgba(59,130,246,.1)':'color:#4ADE80;background:rgba(74,222,128,.1)';
+    const cModeAbbr=s.mode==='topgolf'?'TG':s.mode==='topscore'?'TS':s.mode==='practice'?'P':'';
+    const cModeBg=s.mode==='topgolf'?'rgba(56,189,248,.1)':s.mode==='topscore'?'rgba(245,158,11,.1)':'rgba(74,222,128,.1)';
+    const cModeCol=s.mode==='topgolf'?'#38BDF8':s.mode==='topscore'?'#F59E0B':'#4ADE80';
     const fDist =s.carry!=null ? dispVal(s.carry,'dist')  : '--';
     const fSpeed=s.speed!=null ? dispVal(s.speed,'speed') : '--';
     const fHang =s.hang !=null ? `${s.hang}s` : '--';
@@ -845,6 +852,7 @@ function classic_renderFeed(){
           <span class="c-tech text-xs font-bold text-white rounded-md px-2 py-0.5 text-center"
             style="background:#2D2D34;min-width:50px;">${s.club.toUpperCase()}</span>
           <span class="c-tech font-bold rounded px-1.5 py-0.5" style="font-size:9px;${lieC};">${lieL}</span>
+          ${cModeAbbr?`<span class="c-tech font-bold rounded px-1.5 py-0.5" style="font-size:9px;background:${cModeBg};color:${cModeCol};">${cModeAbbr}</span>`:''}
           <span class="c-num text-[11px]" style="color:rgba(228,228,231,.4);">${fmtTimestamp(s.ts)}</span>
         </div>
         <div class="flex items-center gap-2">
