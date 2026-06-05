@@ -1038,7 +1038,7 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
       : `~${Math.round(apexFt)} ${unitLabel('height')}`;
     ctx.font = 'bold 10px "Roboto Mono",monospace';
     ctx.textAlign = 'center';
-    ctx.fillStyle = `rgba(56,189,248,${0.9 * fade})`;
+    ctx.fillStyle = `rgba(74,222,128,${0.9 * fade})`;
     ctx.fillText(lbl, apj.x, apj.y - 10);
   })();
 
@@ -1084,7 +1084,7 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
       const fs    = Math.max(9, Math.min(14, lpj.s * 6));
       ctx.font      = `bold ${fs}px "Roboto Mono",monospace`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(56,189,248,0.65)';
+      ctx.fillStyle = 'rgba(74,222,128,0.80)';
       ctx.fillText(label, lpj.x, lpj.y - 14 * lpj.s - 6);
     }
   }
