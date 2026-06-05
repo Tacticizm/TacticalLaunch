@@ -1,5 +1,25 @@
 // ─── Constants ───────────────────────────────────────────────
 const CLUBS  = ['Driver','3 Wood','4 Hybrid','5 Iron','6 Iron','7 Iron','8 Iron','9 Iron','PW','GW','SW'];
+
+// Abbreviation / alternate-name → canonical club name
+const CLUB_ALIASES = {
+  // 3 Wood
+  '3w':'3 Wood','3wood':'3 Wood','3-wood':'3 Wood','3 w':'3 Wood',
+  // 4 Hybrid
+  '4h':'4 Hybrid','4hybrid':'4 Hybrid','4-hybrid':'4 Hybrid','4hy':'4 Hybrid','4 h':'4 Hybrid',
+  // Irons (5–9)
+  '5i':'5 Iron','5iron':'5 Iron','5-iron':'5 Iron','5 i':'5 Iron',
+  '6i':'6 Iron','6iron':'6 Iron','6-iron':'6 Iron','6 i':'6 Iron',
+  '7i':'7 Iron','7iron':'7 Iron','7-iron':'7 Iron','7 i':'7 Iron',
+  '8i':'8 Iron','8iron':'8 Iron','8-iron':'8 Iron','8 i':'8 Iron',
+  '9i':'9 Iron','9iron':'9 Iron','9-iron':'9 Iron','9 i':'9 Iron',
+  // Wedges
+  'pw':'PW','pitchingwedge':'PW','pitching wedge':'PW',
+  'gw':'GW','gapwedge':'GW','gap wedge':'GW','aw':'GW','approachwedge':'GW',
+  'sw':'SW','sandwedge':'SW','sand wedge':'SW',
+  // Driver variants
+  'dr':'Driver','drv':'Driver','d':'Driver','1w':'Driver','1 wood':'Driver',
+};
 const FIELDS = ['carry','speed','hang','apex','curve'];
 const META = {
   carry: { label:'Carry Distance', unit:'dist',   bar:'#34D399' },
@@ -56,10 +76,24 @@ function migrateAndLoad(){
 function normalizeShot(s){
   const n = v => { const f = parseFloat(v); return (!isNaN(f) && v != null) ? f : null; };
 
-  let club = (s.club || 'Driver').replace(/-/g, ' ');
+  let club = (s.club || 'Driver').trim();
   if (!CLUBS.includes(club)){
-    const m = CLUBS.find(c => c.toLowerCase() === club.toLowerCase());
-    club = m || 'Driver';
+    // 1. Try alias map (case-insensitive)
+    const aliased = CLUB_ALIASES[club.toLowerCase()];
+    if (aliased){
+      club = aliased;
+    } else {
+      // 2. Replace hyphens and retry alias map
+      const noDash = club.replace(/-/g, ' ');
+      const aliasedNoDash = CLUB_ALIASES[noDash.toLowerCase()];
+      if (aliasedNoDash){
+        club = aliasedNoDash;
+      } else {
+        // 3. Case-insensitive exact match against CLUBS
+        const m = CLUBS.find(c => c.toLowerCase() === noDash.toLowerCase());
+        club = m || 'Driver';
+      }
+    }
   }
 
   let ts = s.ts;
