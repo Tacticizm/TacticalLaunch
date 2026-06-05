@@ -954,11 +954,12 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
   }
 
   // ── Build trajectory points ───────────────────────────────────
+  // wx uses t² so ball launches straight then bends progressively (sidespin effect)
   const STEPS = 100;
   const pts   = [];
   for (let i = 0; i <= STEPS; i++){
     const t  = i / STEPS;
-    const wx = curveYds * t;
+    const wx = curveYds * t * t;
     const wy = 4 * apexYds * t * (1 - t);
     const wz = carry * t;
     const p  = proj(wx, wy, wz);
@@ -978,7 +979,7 @@ function trajDraw(ctx, W, H, shot, progress, postLand){
     let first = true;
     for (let i = 0; i <= Math.round(progress * STEPS); i++){
       const t  = i / STEPS;
-      const p  = proj(curveYds * t, 0, carry * t);
+      const p  = proj(curveYds * t * t, 0, carry * t);
       if (!p) continue;
       first ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
       first = false;
