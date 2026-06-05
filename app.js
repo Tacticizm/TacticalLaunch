@@ -68,17 +68,26 @@ function normalizeShot(s){
     else { ts = s.id || Date.now(); }
   }
 
+  // Resolve apex/curve first so we can auto-assign mode
+  const apex  = n(s.apex   ?? s.height      ?? s.peakHeight    ?? s.maxHeight);
+  const curve = n(s.curve  ?? s.deviation   ?? s.lateral);
+
+  // If mode is already set, keep it. Otherwise:
+  //   has apex or curve data → practice session
+  //   no apex and no curve   → top golf session
+  const mode = s.mode || ((apex != null || curve != null) ? 'practice' : 'topgolf');
+
   return {
     id:    s.id ?? Date.now(),
     ts:    Number(ts),
     club,
     lie:   s.lie   || 'tee',
-    mode:  s.mode  || null,
+    mode,
     carry: n(s.carry  ?? s.distance    ?? s.carryDistance ?? s.yards),
     speed: n(s.speed  ?? s.ballSpeed   ?? s.mph           ?? s.velocity),
     hang:  n(s.hang   ?? s.hangtime    ?? s.hangTime      ?? s.airTime),
-    apex:  n(s.apex   ?? s.height      ?? s.peakHeight    ?? s.maxHeight),
-    curve: n(s.curve  ?? s.deviation   ?? s.lateral),
+    apex,
+    curve,
   };
 }
 
