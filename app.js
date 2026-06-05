@@ -69,7 +69,7 @@ function migrateAndLoad(){
     if (Array.isArray(b)) b.forEach(s => { if (!seen.has(s.id)){ seen.add(s.id); shots.push(s); }});
   } catch(_){}
 
-  S.shots = shots.map(normalizeShot).sort((a,b) => b.ts - a.ts);
+  S.shots = fixBulkStamp(shots.map(normalizeShot)).sort((a,b) => b.ts - a.ts);
   localStorage.setItem(LS_SHOTS, JSON.stringify(S.shots));
 }
 
@@ -98,8 +98,17 @@ function normalizeShot(s){
 
   let ts = s.ts;
   if (!ts || isNaN(ts)){
-    if (s.timestamp){ const p = new Date(s.timestamp).getTime(); ts = isNaN(p) ? Date.now() : p; }
-    else { ts = s.id || Date.now(); }
+    // Prefer id (exact ms, always unique per-shot) over timestamp (often rounded
+    // to the nearest second/minute, causing same-time display for quick shots)
+    const idMs = typeof s.id === 'number' ? s.id : Number(s.id);
+    if (!isNaN(idMs) && idMs > 1e12){
+      ts = idMs;
+    } else if (s.timestamp){
+      const p = typeof s.timestamp === 'number' ? s.timestamp : new Date(s.timestamp).getTime();
+      ts = (!isNaN(p) && p > 0) ? p : Date.now();
+    } else {
+      ts = Date.now();
+    }
   }
 
   // Resolve apex/curve first so we can auto-assign mode
@@ -126,6 +135,13 @@ function normalizeShot(s){
 }
 
 function save(){ localStorage.setItem(LS_SHOTS, JSON.stringify(S.shots)); }
+
+// If ALL shots share the same ts (bulk-stamped at export time), replace with id
+function fixBulkStamp(shots){
+  if (shots.length < 2) return shots;
+  if (!shots.every(s => s.ts === shots[0].ts)) return shots;
+  return shots.map(s => ({ ...s, ts: s.id }));
+}
 
 // ─── Unit Conversion ──────────────────────────────────────────
 function applyUnit(val, type){
@@ -990,7 +1006,7 @@ function importData(){
     try{ parsed=JSON.parse(decodeURIComponent(escape(atob(raw)))); }
     catch(_){ parsed=JSON.parse(atob(raw)); }
     if(!Array.isArray(parsed)) throw 0;
-    S.shots=parsed.map(normalizeShot).sort((a,b)=>b.ts-a.ts);
+    S.shots=fixBulkStamp(parsed.map(normalizeShot)).sort((a,b)=>b.ts-a.ts);
     save();
     if(S.editingId!==null) cancelEdit(); else renderAll();
     renderAll();
