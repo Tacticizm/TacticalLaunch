@@ -20,6 +20,7 @@ const S = {
   shots:[], editingId:null,
   theme:'orbital', metric:false, pendingDelete:null,
   mode:'topgolf',
+  feedFilter:{ mode:'all', lie:'all', club:'all' },
 };
 
 // ─── Boot ─────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ function normalizeShot(s){
     ts:    Number(ts),
     club,
     lie:   s.lie   || 'tee',
+    mode:  s.mode  || null,
     carry: n(s.carry  ?? s.distance    ?? s.carryDistance ?? s.yards),
     speed: n(s.speed  ?? s.ballSpeed   ?? s.mph           ?? s.velocity),
     hang:  n(s.hang   ?? s.hangtime    ?? s.hangTime      ?? s.airTime),
@@ -386,7 +388,7 @@ function submitShot(){
   const shot = {
     id:    S.editingId ?? Date.now(),
     ts:    S.editingId ? (S.shots.find(s=>s.id===S.editingId)?.ts ?? Date.now()) : Date.now(),
-    club:  S.club, lie:S.lie,
+    club:  S.club, lie:S.lie, mode: S.mode,
     carry, speed,
     hang:  n('hang'), apex:n('apex'), curve:n('curve'),
   };
@@ -572,6 +574,109 @@ function classic_renderStats(){
   }).join('');
 }
 
+// ─── Feed Filters ─────────────────────────────────────────────
+
+function setFeedFilter(type, val){
+  S.feedFilter[type] = val;
+  renderFeed();
+}
+
+function filteredFeedShots(){
+  const ff = S.feedFilter;
+  return S.shots.filter(s => {
+    if (ff.mode !== 'all' && s.mode !== ff.mode) return false;
+    if (ff.lie  !== 'all' && s.lie  !== ff.lie)  return false;
+    if (ff.club !== 'all' && s.club !== ff.club) return false;
+    return true;
+  });
+}
+
+function getLoggedClubs(){
+  // Return clubs in standard order, only those with at least one shot
+  return CLUBS.filter(c => S.shots.some(s => s.club === c));
+}
+
+function orbital_renderFeedFilter(){
+  const el = document.getElementById('o-feedFilter');
+  if (!el) return;
+  const clubs = getLoggedClubs();
+  const chip = (type, val, label) => {
+    const on = S.feedFilter[type] === val;
+    return `<button onclick="setFeedFilter('${type}','${val}')"
+      class="o-kb shrink-0 px-2.5 py-1 rounded-xl border text-xs font-black tracking-widest"
+      style="${on
+        ? 'border-color:#38BDF8;background:rgba(56,189,248,.12);color:#38BDF8;'
+        : 'border-color:#1C1E32;color:#4E5275;background:transparent;'}">${label}</button>`;
+  };
+  el.innerHTML = `
+    <div class="rounded-2xl p-3.5" style="background:#0D0E19;border:1px solid #1C1E32;">
+      <div class="flex items-center gap-2.5 mb-2.5">
+        <span class="text-xs font-black tracking-widest shrink-0" style="color:#4E5275;width:36px;">MODE</span>
+        <div class="noscroll flex gap-1.5 overflow-x-auto">
+          ${chip('mode','all','ALL')}${chip('mode','topgolf','TOP GOLF')}${chip('mode','topscore','TOP SCORE')}${chip('mode','practice','PRACTICE')}
+        </div>
+      </div>
+      <div class="flex items-center gap-2.5 mb-2.5">
+        <span class="text-xs font-black tracking-widest shrink-0" style="color:#4E5275;width:36px;">LIE</span>
+        <div class="flex gap-1.5">
+          ${chip('lie','all','ALL')}${chip('lie','tee','TEE')}${chip('lie','grass','GRASS')}
+        </div>
+      </div>
+      ${clubs.length ? `
+      <div class="flex items-center gap-2.5 mb-2.5">
+        <span class="text-xs font-black tracking-widest shrink-0" style="color:#4E5275;width:36px;">CLUB</span>
+        <div class="noscroll flex gap-1.5 overflow-x-auto">
+          ${chip('club','all','ALL')}${clubs.map(c => chip('club',c,c)).join('')}
+        </div>
+      </div>` : ''}
+      <div class="flex items-center gap-2.5">
+        <span class="text-xs font-black tracking-widest shrink-0" style="color:#4E5275;width:36px;">DATE</span>
+        <button class="o-kb flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold text-left"
+          style="background:#141526;border-color:#1C1E32;color:#4E5275;">📅 Set date & time range</button>
+      </div>
+    </div>`;
+}
+
+function classic_renderFeedFilter(){
+  const el = document.getElementById('c-feedFilter');
+  if (!el) return;
+  const clubs = getLoggedClubs();
+  const chip = (type, val, label) => {
+    const on = S.feedFilter[type] === val;
+    return `<button onclick="setFeedFilter('${type}','${val}')"
+      class="c-kb c-tech shrink-0 px-2 py-0.5 rounded-lg border font-bold tracking-widest"
+      style="font-size:9px;${on
+        ? 'border-color:#10B981;background:rgba(16,185,129,.1);color:#10B981;'
+        : 'border-color:#2D2D34;color:rgba(228,228,231,.4);background:transparent;'}">${label}</button>`;
+  };
+  el.innerHTML = `
+    <div style="padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid rgba(45,45,52,.5);">
+      <div class="flex items-center gap-2 mb-1.5">
+        <span class="c-tech font-bold shrink-0" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.3);width:40px;">MODE</span>
+        <div class="noscroll flex gap-1 overflow-x-auto">
+          ${chip('mode','all','ALL')}${chip('mode','topgolf','TOP GOLF')}${chip('mode','topscore','TOP SCORE')}${chip('mode','practice','PRACTICE')}
+        </div>
+      </div>
+      <div class="flex items-center gap-2 mb-1.5">
+        <span class="c-tech font-bold shrink-0" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.3);width:40px;">LIE</span>
+        <div class="flex gap-1">
+          ${chip('lie','all','ALL')}${chip('lie','tee','TEE')}${chip('lie','grass','GRASS')}
+        </div>
+      </div>
+      ${clubs.length ? `
+      <div class="flex items-center gap-2 mb-1.5">
+        <span class="c-tech font-bold shrink-0" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.3);width:40px;">CLUB</span>
+        <div class="noscroll flex gap-1 overflow-x-auto">
+          ${chip('club','all','ALL')}${clubs.map(c => chip('club',c,c.toUpperCase())).join('')}
+        </div>
+      </div>` : ''}
+      <div class="flex items-center gap-2">
+        <span class="c-tech font-bold shrink-0" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.3);width:40px;">DATE</span>
+        <button class="c-kb c-tech flex-1 py-1 px-2.5 rounded-lg border font-bold text-left" style="font-size:9px;background:#121214;border-color:#2D2D34;color:rgba(228,228,231,.25);">📅 Set date & time range</button>
+      </div>
+    </div>`;
+}
+
 // ─── Feed ─────────────────────────────────────────────────────
 function relTime(ts){
   const d=Date.now()-ts;
@@ -599,12 +704,19 @@ function orbital_renderFeed(){
   const feed =document.getElementById('o-feed');
   const empty=document.getElementById('o-emptyState');
   const cnt  =document.getElementById('o-shotCount');
-  const n=S.shots.length;
-  if(cnt) cnt.textContent=`${n} shot${n!==1?'s':''}`;
-  if(!n){if(feed)feed.innerHTML=''; if(empty)empty.style.display='block'; return;}
+  const total = S.shots.length;
+  const shots = filteredFeedShots();
+  orbital_renderFeedFilter();
+  if(cnt) cnt.textContent = shots.length < total
+    ? `${shots.length}/${total}` : `${total} shot${total!==1?'s':''}`;
+  if(!total){if(feed)feed.innerHTML=''; if(empty)empty.style.display='block'; return;}
   if(empty)empty.style.display='none';
+  if(!shots.length){
+    if(feed) feed.innerHTML=`<p class="text-sm text-center py-6 font-semibold" style="color:#252840;">No shots match the filter.</p>`;
+    return;
+  }
   const noV=`<span style="color:#252840;">—</span>`;
-  feed.innerHTML = S.shots.map(s=>{
+  feed.innerHTML = shots.map(s=>{
     const ed=s.id===S.editingId;
     const cv=curveFeedFmt(s.curve);
     const lie=s.lie||'tee';
@@ -685,13 +797,20 @@ function classic_renderFeed(){
   const list=document.getElementById('c-shotList');
   const cnt =document.getElementById('c-shotCount');
   if(!list) return;
-  if(cnt) cnt.textContent = S.shots.length ? `${S.shots.length} shots` : '';
-  if(!S.shots.length){
-    list.innerHTML=`<div class="text-xs text-center py-4 c-tech uppercase tracking-wider" style="color:rgba(228,228,231,.3);">
-      No historic payload telemetry</div>`;
+  const total = S.shots.length;
+  const shots = filteredFeedShots();
+  classic_renderFeedFilter();
+  if(cnt) cnt.textContent = shots.length < total
+    ? `${shots.length}/${total}` : (total ? `${total} shots` : '');
+  if(!total){
+    list.innerHTML=`<div class="text-xs text-center py-4 c-tech uppercase tracking-wider" style="color:rgba(228,228,231,.3);">No historic payload telemetry</div>`;
     return;
   }
-  list.innerHTML = S.shots.map(s=>{
+  if(!shots.length){
+    list.innerHTML=`<div class="text-xs text-center py-4 c-tech uppercase tracking-wider" style="color:rgba(228,228,231,.3);">No shots match the filter.</div>`;
+    return;
+  }
+  list.innerHTML = shots.map(s=>{
     const ed=s.id===S.editingId;
     const lie=s.lie||'tee';
     const lieL=lie==='tee'?'TEE':'GRS';
