@@ -1385,15 +1385,45 @@ function handleScanFile(input){
   if (!file) return;
   _scan.state  = 'scanning';
   _scan.result = {};
+  _scan.rawText = '';
   _scan.imgUrl = URL.createObjectURL(file);
   renderScanModal();
   document.getElementById('scanModal').classList.add('open');
-  runOCR(file);
+  preprocessImage(file).then(blob => runOCR(blob));
 }
 
-async function runOCR(file){
+// Boost contrast and convert to grayscale so Tesseract reads screen numbers better
+function preprocessImage(file){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d  = id.data;
+      const CONTRAST = 60; // 0–255 boost
+      const factor   = (259 * (CONTRAST + 255)) / (255 * (259 - CONTRAST));
+      for (let i = 0; i < d.length; i += 4){
+        // Grayscale
+        const g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+        // Contrast
+        const c = Math.max(0, Math.min(255, factor * (g - 128) + 128));
+        d[i] = d[i+1] = d[i+2] = c;
+      }
+      ctx.putImageData(id, 0, 0);
+      canvas.toBlob(resolve, 'image/png');
+    };
+    img.src = _scan.imgUrl;
+  });
+}
+
+async function runOCR(blob){
   try {
-    const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+    const { data: { text } } = await Tesseract.recognize(blob, 'eng', {
       logger: m => {
         if (m.status === 'recognizing text'){
           const pct = Math.round((m.progress || 0) * 100);
@@ -1404,8 +1434,9 @@ async function runOCR(file){
         }
       }
     });
-    _scan.result = parseScanText(text);
-    _scan.state  = 'done';
+    _scan.rawText = text;
+    _scan.result  = parseScanText(text);
+    _scan.state   = 'done';
   } catch(e){
     _scan.state = 'error';
   }
@@ -1413,49 +1444,75 @@ async function runOCR(file){
 }
 
 function parseScanText(raw){
-  // Normalise: uppercase, collapse whitespace
   const t = raw.toUpperCase().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
 
-  // Find a number within 50 chars after a label, validated against a range
-  const near = (label, minVal, maxVal) => {
-    const re = new RegExp(label + '[^\\d]{0,50}?(\\d{1,3}(?:\\.\\d{1,2})?)');
-    const m  = t.match(re);
+  // Strategy A: number immediately before/after a unit keyword
+  const byUnit = (unit, minV, maxV) => {
+    const re = new RegExp('(\\d{1,3}(?:\\.\\d{1,2})?)\\s{0,4}' + unit +
+                          '|' + unit + '\\s{0,4}(\\d{1,3}(?:\\.\\d{1,2})?)');
+    const m = t.match(re);
+    if (!m) return null;
+    const v = parseFloat(m[1] ?? m[2]);
+    return (!isNaN(v) && v >= minV && v <= maxV) ? v : null;
+  };
+
+  // Strategy B: number within 120 chars after a label keyword
+  const byLabel = (label, minV, maxV) => {
+    const re = new RegExp(label + '[\\s\\S]{0,120}?(\\d{1,3}(?:\\.\\d{1,2})?)');
+    const m = t.match(re);
     if (!m) return null;
     const v = parseFloat(m[1]);
-    return (v >= minVal && v <= maxVal) ? v : null;
+    return (!isNaN(v) && v >= minV && v <= maxV) ? v : null;
   };
 
-  // Curve needs direction: look for L/R before or after the number
-  const parseCurve = () => {
-    // Try: CURVE ... [L|R] ... number  OR  CURVE ... number ... [L|R]
-    const patterns = [
-      /CURVE[^LR\d]{0,30}([LR])\s*(\d{1,2}(?:\.\d{1,2})?)/,  // CURVE ... L 3.5
-      /(?:LATERAL|CURV)[^LR\d]{0,30}([LR])\s*(\d{1,2}(?:\.\d{1,2})?)/,
-      /CURVE[^LR\d]{0,30}(\d{1,2}(?:\.\d{1,2})?)\s*([LR])/,  // CURVE ... 3.5 L
-    ];
-    for (const re of patterns){
-      const m = t.match(re);
-      if (m){
-        let dir, num;
-        if (m[1] === 'L' || m[1] === 'R'){ dir = m[1]; num = parseFloat(m[2]); }
-        else { num = parseFloat(m[1]); dir = m[2]; }
-        if (!isNaN(num) && num <= 100){
-          return dir === 'L' ? -num : num;
-        }
+  // Strategy C: scan all numbers and classify by value range + context
+  const allNums = [...t.matchAll(/(\d{1,3}(?:\.\d{1,2})?)/g)].map(m => ({
+    v: parseFloat(m[1]),
+    ctx: t.slice(Math.max(0, m.index - 25), m.index + 25)
+  }));
+
+  const byRange = (minV, maxV, contextHints) => {
+    for (const n of allNums){
+      if (n.v < minV || n.v > maxV) continue;
+      if (!contextHints || contextHints.some(h => n.ctx.includes(h))) return n.v;
+    }
+    return null;
+  };
+
+  const carry = byUnit('YDS', 50, 400) || byLabel('CARRY', 50, 400)
+             || byRange(50, 400, ['CARRY','YDS']);
+
+  const speed = byUnit('MPH', 50, 250) || byLabel('SPEED', 50, 250)
+             || byRange(50, 250, ['SPEED','MPH']);
+
+  const hang  = byUnit('SEC', 0.5, 15) || byLabel('HANG', 0.5, 15)
+             || byRange(0.5, 15, ['HANG','SEC','TIME']);
+
+  const apex  = byUnit('FT', 5, 400)  || byLabel('(?:APEX|HEIGHT)', 5, 400)
+             || byRange(5, 400, ['APEX','HEIGHT','FT']);
+
+  // Curve: look for L/R direction tag near a small yardage
+  let curve = null;
+  const curvePatterns = [
+    /([LR])\s{0,3}(\d{1,2}(?:\.\d{1,2})?)\s{0,4}(?:YD|YDS)?/,
+    /(\d{1,2}(?:\.\d{1,2})?)\s{0,4}(?:YD|YDS)?\s{0,4}([LR])(?:\s|$)/,
+    /CURVE[\s\S]{0,60}([LR])\s{0,3}(\d{1,2}(?:\.\d{1,2})?)/,
+    /LATERAL[\s\S]{0,40}([LR])\s{0,3}(\d{1,2}(?:\.\d{1,2})?)/,
+  ];
+  for (const re of curvePatterns){
+    const m = t.match(re);
+    if (m){
+      let dir, num;
+      if (/^[LR]$/.test(m[1])){ dir = m[1]; num = parseFloat(m[2]); }
+      else { num = parseFloat(m[1]); dir = m[2]; }
+      if (!isNaN(num) && num >= 0 && num <= 80){
+        curve = dir === 'L' ? -num : num; break;
       }
     }
-    // Fallback: just a number near CURVE with no direction (return positive)
-    const fallback = near('CURVE', 0, 100);
-    return fallback != null ? fallback : null;
-  };
+  }
+  if (curve === null) curve = byLabel('CURVE', 0, 80) || byLabel('LATERAL', 0, 80);
 
-  return {
-    carry: near('CARRY',                       10, 400),
-    speed: near('(?:BALL\\s*)?SPEED',          10, 250),
-    hang:  near('HANG',                         0,  20),
-    apex:  near('(?:APEX|PEAK\\s*HEIGHT|HEIGHT(?!\\s*[A-Z]))', 1, 400),
-    curve: parseCurve(),
-  };
+  return { carry, speed, hang, apex, curve };
 }
 
 function closeScanModal(){
@@ -1560,13 +1617,19 @@ function renderScanModal(){
           ${fmtCurveDetected(r.curve)}
         </div>
       </div>
-      ${!ok ? `<p class="text-xs text-center mb-4" style="color:#FF5500;">No stats detected — try again closer to the stats strip.</p>` : ''}
-      <div class="flex gap-3 pb-2">
+      ${!ok ? `<p class="text-xs text-center mb-3" style="color:#FF5500;">No stats detected — see raw text below.</p>` : ''}
+      <div class="flex gap-3 mb-4">
         <button onclick="openScan(); closeScanModal();" class="o-kb flex-1 py-3 rounded-2xl text-xs font-black tracking-widest"
           style="background:#141526;border:1px solid #1C1E32;color:#4E5275;">RETRY</button>
         ${ok ? `<button onclick="scanApply()" class="o-kb flex-1 py-3 rounded-2xl text-xs font-black tracking-widest"
           style="background:#38BDF8;color:#07080E;">USE THESE STATS</button>` : ''}
       </div>
+      <!-- Raw OCR output for debugging -->
+      <details style="border:1px solid #1C1E32;border-radius:12px;overflow:hidden;">
+        <summary class="text-xs font-black tracking-widest px-3 py-2.5 cursor-pointer"
+          style="color:#252840;list-style:none;">▸ RAW OCR TEXT (tap to view)</summary>
+        <pre style="font-size:9px;color:#4E5275;padding:10px 12px;white-space:pre-wrap;word-break:break-all;border-top:1px solid #1C1E32;max-height:120px;overflow-y:auto;">${(_scan.rawText||'').slice(0,1200)}</pre>
+      </details>
     </div>
     <div style="height:max(env(safe-area-inset-bottom),8px);"></div>`;
 }
