@@ -1627,8 +1627,8 @@ function renderScanModal(){
       <!-- Raw OCR output for debugging -->
       <details style="border:1px solid #1C1E32;border-radius:12px;overflow:hidden;">
         <summary class="text-xs font-black tracking-widest px-3 py-2.5 cursor-pointer"
-          style="color:#252840;list-style:none;">▸ RAW OCR TEXT (tap to view)</summary>
-        <pre style="font-size:9px;color:#4E5275;padding:10px 12px;white-space:pre-wrap;word-break:break-all;border-top:1px solid #1C1E32;max-height:120px;overflow-y:auto;">${(_scan.rawText||'').slice(0,1200)}</pre>
+          style="color:#4E5275;background:#0D0E19;list-style:none;user-select:none;">▸ RAW OCR TEXT (tap to expand)</summary>
+        <pre style="font-size:9px;color:#8B8FAD;background:#0D0E19;padding:10px 12px;white-space:pre-wrap;word-break:break-all;border-top:1px solid #1C1E32;max-height:160px;overflow-y:auto;">${(_scan.rawText||'(no text captured yet)').slice(0,1200)}</pre>
       </details>
     </div>
     <div style="height:max(env(safe-area-inset-bottom),8px);"></div>`;
