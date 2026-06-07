@@ -40,7 +40,7 @@ const S = {
   shots:[], editingId:null,
   theme:'orbital', metric:false, pendingDelete:null,
   mode:'topgolf',
-  feedFilter:{ mode:'all', lie:'all', club:'all', dateFrom:null, dateTo:null, hourFrom:0, hourTo:23 },
+  feedFilter:{ mode:'all', lie:'all', club:'all', dateFrom:null, dateTo:null, hourFrom:0, hourTo:23, limit:25 },
 };
 
 // ─── Boot ─────────────────────────────────────────────────────
@@ -649,11 +649,10 @@ function setFeedFilter(type, val){
 
 function filteredFeedShots(){
   const ff = S.feedFilter;
-  return S.shots.filter(s => {
+  const all = S.shots.filter(s => {
     if (ff.mode !== 'all' && s.mode !== ff.mode) return false;
     if (ff.lie  !== 'all' && s.lie  !== ff.lie)  return false;
     if (ff.club !== 'all' && s.club !== ff.club) return false;
-    // Date-range filter
     if (ff.dateFrom){
       const from = new Date(ff.dateFrom + 'T00:00:00');
       from.setHours(ff.hourFrom ?? 0, 0, 0, 0);
@@ -666,7 +665,12 @@ function filteredFeedShots(){
     }
     return true;
   });
+  // _filteredTotal holds the unsliced count for the "N of M" display
+  filteredFeedShots._total = all.length;
+  const lim = ff.limit || 0;
+  return lim > 0 ? all.slice(0, lim) : all;
 }
+filteredFeedShots._total = 0;
 
 function getLoggedClubs(){
   // Return clubs in standard order, only those with at least one shot
@@ -706,7 +710,7 @@ function orbital_renderFeedFilter(){
           ${chip('club','all','ALL')}${clubs.map(c => chip('club',c,c)).join('')}
         </div>
       </div>` : ''}
-      <div class="flex items-center gap-2.5">
+      <div class="flex items-center gap-2.5 mb-2.5">
         <span class="text-xs font-black tracking-widest shrink-0" style="color:#4E5275;width:36px;">DATE</span>
         ${(()=>{
           const hasDate = S.feedFilter.dateFrom;
@@ -716,6 +720,20 @@ function orbital_renderFeedFilter(){
           return `<button onclick="openDateFilter()" class="o-kb flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold text-left"
             style="background:${hasDate?'rgba(56,189,248,.12)':'#141526'};border-color:${hasDate?'#38BDF8':'#1C1E32'};color:${hasDate?'#38BDF8':'#4E5275'};">${label}</button>`;
         })()}
+      </div>
+      <div class="flex items-center gap-2.5">
+        <span class="text-xs font-black tracking-widest shrink-0" style="color:#4E5275;width:36px;">SHOW</span>
+        <div class="flex gap-1.5">
+          ${[10,25,50,0].map(n=>{
+            const on = S.feedFilter.limit === n;
+            const label = n === 0 ? 'ALL' : String(n);
+            return `<button onclick="setFeedFilter('limit',${n})"
+              class="o-kb shrink-0 px-2.5 py-1 rounded-xl border text-xs font-black tracking-widest"
+              style="${on
+                ? 'border-color:#38BDF8;background:rgba(56,189,248,.12);color:#38BDF8;'
+                : 'border-color:#1C1E32;color:#4E5275;background:transparent;'}">${label}</button>`;
+          }).join('')}
+        </div>
       </div>
     </div>`;
 }
@@ -753,7 +771,7 @@ function classic_renderFeedFilter(){
           ${chip('club','all','ALL')}${clubs.map(c => chip('club',c,c.toUpperCase())).join('')}
         </div>
       </div>` : ''}
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 mb-1.5">
         <span class="c-tech font-bold shrink-0" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.3);width:40px;">DATE</span>
         ${(()=>{
           const hasDate = S.feedFilter.dateFrom;
@@ -762,6 +780,20 @@ function classic_renderFeedFilter(){
             : '📅 Set date & time range';
           return `<button onclick="openDateFilter()" class="c-kb c-tech flex-1 py-1 px-2.5 rounded-lg border font-bold text-left" style="font-size:9px;background:${hasDate?'rgba(16,185,129,.1)':'#121214'};border-color:${hasDate?'#10B981':'#2D2D34'};color:${hasDate?'#10B981':'rgba(228,228,231,.25)'};">${label}</button>`;
         })()}
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="c-tech font-bold shrink-0" style="font-size:9px;letter-spacing:.1em;color:rgba(228,228,231,.3);width:40px;">SHOW</span>
+        <div class="flex gap-1">
+          ${[10,25,50,0].map(n=>{
+            const on = S.feedFilter.limit === n;
+            const label = n === 0 ? 'ALL' : String(n);
+            return `<button onclick="setFeedFilter('limit',${n})"
+              class="c-kb c-tech shrink-0 px-2 py-0.5 rounded-lg border font-bold tracking-widest"
+              style="font-size:9px;${on
+                ? 'border-color:#10B981;background:rgba(16,185,129,.1);color:#10B981;'
+                : 'border-color:#2D2D34;color:rgba(228,228,231,.4);background:transparent;'}">${label}</button>`;
+          }).join('')}
+        </div>
       </div>
     </div>`;
 }
@@ -795,9 +827,16 @@ function orbital_renderFeed(){
   const cnt  =document.getElementById('o-shotCount');
   const total = S.shots.length;
   const shots = filteredFeedShots();
+  const filteredTotal = filteredFeedShots._total;
   orbital_renderFeedFilter();
-  if(cnt) cnt.textContent = shots.length < total
-    ? `${shots.length}/${total}` : `${total} shot${total!==1?'s':''}`;
+  if(cnt){
+    if(shots.length < filteredTotal)
+      cnt.textContent = `${shots.length} of ${filteredTotal}`;
+    else if(filteredTotal < total)
+      cnt.textContent = `${filteredTotal}/${total}`;
+    else
+      cnt.textContent = `${total} shot${total!==1?'s':''}`;
+  }
   if(!total){if(feed)feed.innerHTML=''; if(empty)empty.style.display='block'; return;}
   if(empty)empty.style.display='none';
   if(!shots.length){
@@ -884,6 +923,16 @@ function orbital_renderFeed(){
       </div>
     </div>`;
   }).join('');
+  // Load-more button
+  if(S.feedFilter.limit > 0 && shots.length < filteredTotal){
+    const remaining = filteredTotal - shots.length;
+    const bump = Math.min(25, remaining);
+    feed.innerHTML += `<button onclick="setFeedFilter('limit',${S.feedFilter.limit+bump})"
+      class="o-kb w-full py-3 mt-3 rounded-2xl text-xs font-black tracking-widest"
+      style="background:#141526;border:1px solid #1C1E32;color:#4E5275;">
+      LOAD ${bump} MORE &nbsp;<span style="color:#252840;">(${remaining} remaining)</span>
+    </button>`;
+  }
 }
 
 function classic_renderFeed(){
@@ -892,9 +941,16 @@ function classic_renderFeed(){
   if(!list) return;
   const total = S.shots.length;
   const shots = filteredFeedShots();
+  const filteredTotal = filteredFeedShots._total;
   classic_renderFeedFilter();
-  if(cnt) cnt.textContent = shots.length < total
-    ? `${shots.length}/${total}` : (total ? `${total} shots` : '');
+  if(cnt){
+    if(shots.length < filteredTotal)
+      cnt.textContent = `${shots.length} of ${filteredTotal}`;
+    else if(filteredTotal < total)
+      cnt.textContent = `${filteredTotal}/${total}`;
+    else
+      cnt.textContent = total ? `${total} shots` : '';
+  }
   if(!total){
     list.innerHTML=`<div class="text-xs text-center py-4 c-tech uppercase tracking-wider" style="color:rgba(228,228,231,.3);">No historic payload telemetry</div>`;
     return;
@@ -973,6 +1029,16 @@ function classic_renderFeed(){
       </div>
     </div>`;
   }).join('');
+  // Load-more button
+  if(S.feedFilter.limit > 0 && shots.length < filteredTotal){
+    const remaining = filteredTotal - shots.length;
+    const bump = Math.min(25, remaining);
+    list.innerHTML += `<button onclick="setFeedFilter('limit',${S.feedFilter.limit+bump})"
+      class="c-kb c-tech w-full py-2.5 mt-2 rounded-xl border font-bold tracking-widest text-center"
+      style="font-size:10px;background:transparent;border-color:#2D2D34;color:rgba(228,228,231,.35);">
+      LOAD ${bump} MORE · ${remaining} remaining
+    </button>`;
+  }
 }
 
 // ─── Render All ───────────────────────────────────────────────
