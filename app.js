@@ -543,7 +543,145 @@ function calcStats(shots){
   return r;
 }
 
-function renderStats(){ orbital_renderStats(); classic_renderStats(); }
+// ─── Progression ──────────────────────────────────────────────
+let _prog = { period:'week', field:'carry' };
+
+function progBucketKey(ts, period){
+  const d = new Date(ts);
+  if(period==='day'){
+    return d.toISOString().slice(0,10);
+  } else if(period==='week'){
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - ((d.getDay()+6)%7));
+    return mon.toISOString().slice(0,10);
+  } else {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+}
+
+function progBucketLabel(key, period){
+  if(period==='day'){
+    const d=new Date(key+'T12:00:00');
+    return d.toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'});
+  } else if(period==='week'){
+    const d=new Date(key+'T12:00:00');
+    return 'Wk '+d.toLocaleDateString('en-US',{month:'numeric',day:'numeric'});
+  } else {
+    const [y,m]=key.split('-');
+    return new Date(+y,+m-1,1).toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+  }
+}
+
+function calcProgression(shots, period, field){
+  const buckets={};
+  shots.forEach(s=>{
+    const v=s[field];
+    if(v==null||isNaN(v)) return;
+    const k=progBucketKey(s.ts, period);
+    if(!buckets[k]) buckets[k]=[];
+    buckets[k].push(v);
+  });
+  const maxBuckets = period==='day'?10 : period==='week'?8 : 6;
+  return Object.entries(buckets)
+    .map(([key,vals])=>({
+      key,
+      label: progBucketLabel(key, period),
+      avg: vals.reduce((a,b)=>a+b,0)/vals.length,
+      n: vals.length
+    }))
+    .sort((a,b)=>a.key.localeCompare(b.key))
+    .slice(-maxBuckets);
+}
+
+function setProgPeriod(p){ _prog.period=p; renderProgression(); }
+function setProgField(f) { _prog.field=f;  renderProgression(); }
+
+function renderProgression(){ orbital_renderProgression(); classic_renderProgression(); }
+
+function buildProgHTML(buckets, field, accentColor, trackBg, numClass){
+  if(!buckets.length) return `<p class="text-xs text-center py-3" style="color:#4E5275;">Not enough data yet — keep logging shots.</p>`;
+  const maxAvg = Math.max(...buckets.map(b=>b.avg));
+  const trend = buckets.length>=2 ? buckets[buckets.length-1].avg - buckets[buckets.length-2].avg : null;
+  const trendTxt = trend==null ? '' : trend>0.5 ? `↑ +${Math.abs(trend).toFixed(1)}` : trend<-0.5 ? `↓ −${Math.abs(trend).toFixed(1)}` : `→ stable`;
+  const trendCol = trend==null ? '#4E5275' : trend>0.5 ? '#4ADE80' : trend<-0.5 ? '#FF5500' : '#4E5275';
+  const unit = field==='carry'?'yds':field==='speed'?'mph':field==='apex'?'ft':field==='hang'?'s':'yds';
+  return `
+    <div class="flex items-end justify-between gap-1 mb-3" style="height:72px;">
+      ${buckets.map((b,i)=>{
+        const pct = maxAvg ? Math.max(8,(b.avg/maxAvg)*100) : 8;
+        const isLast = i===buckets.length-1;
+        return `<div class="flex-1 flex flex-col items-center justify-end gap-0.5 h-full">
+          <span class="${numClass} font-bold" style="font-size:8px;color:${isLast?accentColor:'#4E5275'};">${Math.round(b.avg)}</span>
+          <div class="w-full rounded-t-md" style="height:${pct.toFixed(0)}%;background:${isLast?accentColor:trackBg};transition:height .3s;"></div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="flex items-center justify-between gap-1 mb-2">
+      ${buckets.map((b,i)=>{
+        const isLast=i===buckets.length-1;
+        return `<div class="flex-1 text-center" style="font-size:7px;color:${isLast?accentColor:'#4E5275'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.label}</div>`;
+      }).join('')}
+    </div>
+    <div class="flex items-center justify-between">
+      <span style="font-size:9px;color:${trendCol};font-weight:700;">${trendTxt} <span style="color:#4E5275;font-weight:400;">vs prev ${_prog.period}</span></span>
+      <span style="font-size:9px;color:#4E5275;">${buckets[buckets.length-1]?.n??0} shots · avg ${Math.round(buckets[buckets.length-1]?.avg??0)} ${unit}</span>
+    </div>`;
+}
+
+function orbital_renderProgression(){
+  const el=document.getElementById('o-progSection'); if(!el) return;
+  const shots=filteredShots();
+  const buckets=calcProgression(shots, _prog.period, _prog.field);
+  const periodChip=(p,lbl)=>`<button onclick="setProgPeriod('${p}')"
+    class="o-kb flex-1 py-1 rounded-xl text-xs font-black tracking-widest"
+    style="${_prog.period===p?'background:rgba(56,189,248,.15);color:#38BDF8;border:1px solid #38BDF8;':'background:#141526;color:#4E5275;border:1px solid #1C1E32;'}">${lbl}</button>`;
+  const fieldChip=(f,lbl)=>`<button onclick="setProgField('${f}')"
+    class="o-kb flex-1 py-1 rounded-xl text-xs font-black tracking-widest"
+    style="${_prog.field===f?'background:rgba(56,189,248,.15);color:#38BDF8;border:1px solid #38BDF8;':'background:transparent;color:#4E5275;border:1px solid transparent;'}">${lbl}</button>`;
+  el.innerHTML=`
+    <div class="rounded-2xl p-4" style="background:#0D0E19;border:1px solid #1C1E32;">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-1.5 h-4 rounded-full" style="background:#38BDF8;opacity:0.5;"></div>
+          <span class="text-xs font-black tracking-widest text-white">PROGRESSION</span>
+        </div>
+        <div class="flex gap-1">
+          ${fieldChip('carry','CARRY')}${fieldChip('speed','SPEED')}${fieldChip('apex','HEIGHT')}
+        </div>
+      </div>
+      <div class="flex gap-1 mb-4">
+        ${periodChip('day','DAILY')}${periodChip('week','WEEKLY')}${periodChip('month','MONTHLY')}
+      </div>
+      ${buildProgHTML(buckets, _prog.field, '#38BDF8', '#1C1E32', 'o-num')}
+    </div>`;
+}
+
+function classic_renderProgression(){
+  const el=document.getElementById('c-progSection'); if(!el) return;
+  const shots=filteredShots();
+  const buckets=calcProgression(shots, _prog.period, _prog.field);
+  const periodChip=(p,lbl)=>`<button onclick="setProgPeriod('${p}')"
+    class="c-kb c-tech flex-1 py-1 rounded-lg font-bold tracking-widest"
+    style="font-size:9px;${_prog.period===p?'background:rgba(16,185,129,.12);color:#10B981;border:1px solid #10B981;':'background:transparent;color:rgba(228,228,231,.35);border:1px solid #2D2D34;'}">${lbl}</button>`;
+  const fieldChip=(f,lbl)=>`<button onclick="setProgField('${f}')"
+    class="c-kb c-tech flex-1 py-0.5 rounded-lg font-bold tracking-widest"
+    style="font-size:9px;${_prog.field===f?'color:#10B981;border-bottom:1px solid #10B981;':'color:rgba(228,228,231,.3);border-bottom:1px solid transparent;'}">${lbl}</button>`;
+  el.innerHTML=`
+    <div class="rounded-2xl p-3" style="background:#121214;border:1px solid #2D2D34;">
+      <div class="flex items-center justify-between mb-2">
+        <span class="c-tech font-bold tracking-wider uppercase" style="font-size:10px;color:rgba(228,228,231,.5);">PROGRESSION</span>
+        <div class="flex gap-2">
+          ${fieldChip('carry','CARRY')}${fieldChip('speed','SPEED')}${fieldChip('apex','HEIGHT')}
+        </div>
+      </div>
+      <div class="flex gap-1 mb-3">
+        ${periodChip('day','DAILY')}${periodChip('week','WEEKLY')}${periodChip('month','MONTHLY')}
+      </div>
+      ${buildProgHTML(buckets, _prog.field, '#10B981', '#2D2D34', 'c-num')}
+    </div>`;
+}
+
+function renderStats(){ orbital_renderStats(); classic_renderStats(); orbital_renderProgression(); classic_renderProgression(); }
 
 function orbital_renderStats(){
   const oa = document.getElementById('o-analyticsClub');
