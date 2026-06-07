@@ -70,28 +70,33 @@
     </div>
     <p class="text-xs font-black tracking-widest mb-1" style="color:#38BDF8;">EXPORT</p>
     <p class="text-xs leading-relaxed mb-4" style="color:#4E5275;">
-      Encodes all shot history as a portable Base64 string and copies it to the clipboard.
+      Downloads your shot history as a <strong style="color:#DDE0F5;">CSV file</strong> — open in Excel or Google Sheets, or re-import later.
     </p>
-    <button onclick="exportData()"
-      class="o-kb w-full py-4 rounded-2xl text-sm font-black tracking-widest mb-5"
-      style="background:#38BDF8;color:#07080E;box-shadow:0 0 18px rgba(56,189,248,0.2);">
-      COPY TO CLIPBOARD
-    </button>
+    <div class="flex gap-3 mb-5">
+      <button onclick="exportCSV()"
+        class="o-kb flex-1 py-4 rounded-2xl text-sm font-black tracking-widest"
+        style="background:#38BDF8;color:#07080E;box-shadow:0 0 18px rgba(56,189,248,0.2);">
+        ↓ DOWNLOAD CSV
+      </button>
+      <button id="shareBtn" onclick="shareCSV()"
+        class="o-kb py-4 px-5 rounded-2xl text-sm font-black tracking-widest"
+        style="background:#141526;border:1px solid #1C1E32;color:#4E5275;display:none;">
+        ↗ SHARE
+      </button>
+    </div>
     <div class="mb-5" style="height:1px;background:linear-gradient(to right,#38BDF8,transparent);"></div>
     <p class="text-xs font-black tracking-widest mb-1" style="color:#FF5500;">IMPORT</p>
     <p class="text-xs leading-relaxed mb-3" style="color:#4E5275;">
-      Paste an exported string to restore history.
+      Select a <strong style="color:#DDE0F5;">.csv</strong> file to restore history.
       <span style="color:#FF1F3D;">Overwrites current data.</span>
     </p>
-    <textarea id="importText" rows="3"
-      class="w-full rounded-2xl p-3 text-xs o-num mb-3"
-      style="background:#07080E;border:1px solid #1C1E32;color:#DDE0F5;resize:none;"
-      placeholder="Paste exported string here…"></textarea>
-    <button onclick="importData()"
-      class="o-kb w-full py-4 rounded-2xl text-sm font-black tracking-widest"
-      style="background:transparent;border:1.5px solid #FF5500;color:#FF5500;">
-      IMPORT &amp; OVERWRITE
+    <input type="file" id="importFileInput" accept=".csv,.json" style="display:none;" onchange="handleImportFile(this)">
+    <button onclick="document.getElementById('importFileInput').click()"
+      class="o-kb w-full py-4 rounded-2xl text-sm font-black tracking-widest mb-3"
+      style="background:#141526;border:1.5px solid #FF5500;color:#FF5500;">
+      SELECT FILE
     </button>
+    <p id="importFileName" class="text-xs text-center mb-1" style="color:#4E5275;min-height:16px;"></p>
     <div style="height:max(env(safe-area-inset-bottom),20px);"></div>
   </div>
 </div>

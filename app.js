@@ -52,6 +52,7 @@ const S = {
   applyTheme(S.theme, false);
   setFocus('carry'); setLie('tee'); setTab('all');
   renderAll();
+  initShareBtn();
 })();
 
 // ─── Migration + Normalization ────────────────────────────────
@@ -987,38 +988,105 @@ function renderAll(){
 }
 
 // ─── Export / Import ──────────────────────────────────────────
-function exportData(){
+function buildCSV(){
+  const header = 'id,ts,club,lie,carry,speed,hang,apex,curve';
+  const rows = S.shots.map(s=>[
+    s.id, s.ts,
+    '"'+(s.club||'').replace(/"/g,'""')+'"',
+    s.lie||'tee',
+    s.carry??'',
+    s.speed??'',
+    s.hang??'',
+    s.apex??'',
+    s.curve??''
+  ].join(','));
+  return [header,...rows].join('\r\n');
+}
+function exportCSV(){
   if(!S.shots.length){ toast('No shots to export','err'); return; }
-  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(S.shots))));
-  if(navigator.clipboard?.writeText){
-    navigator.clipboard.writeText(b64)
-      .then(()=>toast(`${S.shots.length} shots copied!`,'ok'))
-      .catch(()=>fbCopy(b64));
-  } else fbCopy(b64);
+  const csv = buildCSV();
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'),{
+    href: url,
+    download: `tactical-launch-${new Date().toISOString().slice(0,10)}.csv`
+  });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`${S.shots.length} shots downloaded`,'ok');
 }
-function fbCopy(text){
-  const ta=Object.assign(document.createElement('textarea'),{value:text,style:'position:fixed;opacity:0;top:0;left:0;'});
-  document.body.appendChild(ta); ta.focus(); ta.select();
-  try{document.execCommand('copy');}catch(_){}
-  document.body.removeChild(ta);
-  toast('Copied to clipboard!','ok');
+function shareCSV(){
+  if(!S.shots.length){ toast('No shots to export','err'); return; }
+  const csv  = buildCSV();
+  const file = new File([csv],`tactical-launch-${new Date().toISOString().slice(0,10)}.csv`,{type:'text/csv'});
+  if(navigator.canShare?.({files:[file]})){
+    navigator.share({files:[file],title:'Tactical Launch Shots'}).catch(()=>{});
+  } else {
+    exportCSV();
+  }
 }
-function importData(){
-  const raw=(document.getElementById('importText').value||'').trim();
-  if(!raw){ toast('Paste an export string first','err'); return; }
-  try{
-    let parsed;
-    try{ parsed=JSON.parse(decodeURIComponent(escape(atob(raw)))); }
-    catch(_){ parsed=JSON.parse(atob(raw)); }
-    if(!Array.isArray(parsed)) throw 0;
-    S.shots=fixBulkStamp(parsed.map(normalizeShot)).sort((a,b)=>b.ts-a.ts);
-    save();
-    if(S.editingId!==null) cancelEdit(); else renderAll();
-    renderAll();
-    document.getElementById('importText').value='';
-    toast(`Imported ${S.shots.length} shots`,'ok');
-    closeDataModal();
-  } catch(_){ toast('Invalid import string','err'); }
+function parseCSVLine(line){
+  const cols=[]; let cur='', inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){ if(inQ && line[i+1]==='"'){ cur+='"'; i++; } else inQ=!inQ; }
+    else if(ch===',' && !inQ){ cols.push(cur); cur=''; }
+    else cur+=ch;
+  }
+  cols.push(cur);
+  return cols;
+}
+function parseCSVShots(text){
+  const lines=text.trim().split(/\r?\n/);
+  const hdr=lines[0].split(',').map(h=>h.trim());
+  return lines.slice(1).filter(l=>l.trim()).map(line=>{
+    const cols=parseCSVLine(line);
+    const o={}; hdr.forEach((h,i)=>o[h]=(cols[i]||'').trim());
+    return {
+      id:    Number(o.id)||Date.now(),
+      ts:    Number(o.ts)||Number(o.id)||Date.now(),
+      club:  o.club||'Driver',
+      lie:   o.lie||'tee',
+      carry: parseFloat(o.carry)||0,
+      speed: parseFloat(o.speed)||0,
+      hang:  o.hang!==''&&o.hang!=null ? parseFloat(o.hang) : null,
+      apex:  o.apex!==''&&o.apex!=null ? parseFloat(o.apex) : null,
+      curve: o.curve!==''&&o.curve!=null ? parseFloat(o.curve) : null,
+    };
+  }).filter(s=>s.carry>0);
+}
+function handleImportFile(input){
+  const file=input.files[0]; if(!file) return;
+  const el=document.getElementById('importFileName');
+  if(el) el.textContent=file.name;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result;
+    try{
+      let shots;
+      if(file.name.endsWith('.csv')||file.type==='text/csv'){
+        shots=parseCSVShots(text);
+      } else {
+        // legacy JSON / base64 fallback
+        let parsed;
+        try{ parsed=JSON.parse(decodeURIComponent(escape(atob(text.trim())))); }
+        catch(_){ try{ parsed=JSON.parse(atob(text.trim())); }catch(__){ parsed=JSON.parse(text); } }
+        if(!Array.isArray(parsed)) throw 0;
+        shots=parsed;
+      }
+      if(!shots.length) throw new Error('empty');
+      S.shots=fixBulkStamp(shots.map(normalizeShot)).sort((a,b)=>b.ts-a.ts);
+      save(); renderAll();
+      toast(`Imported ${S.shots.length} shots`,'ok');
+      closeDataModal();
+    } catch(_){ toast('Could not read file','err'); }
+  };
+  reader.readAsText(file);
+}
+// Show share button only if browser supports file sharing
+function initShareBtn(){
+  const btn=document.getElementById('shareBtn');
+  if(btn && navigator.canShare) btn.style.display='';
 }
 
 // ─── Modal helpers ────────────────────────────────────────────
