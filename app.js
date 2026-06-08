@@ -514,12 +514,12 @@ function requestDelete(id){
 }
 function confirmDelete(){
   const id=S.pendingDelete;
+  closeDeleteModal();            // close immediately so it feels snappy
   if (id!=null){
     S.shots=S.shots.filter(s=>s.id!==id);
     if (S.editingId===id) cancelEdit();
     save(); renderAll(); toast('Shot deleted','err');
   }
-  closeDeleteModal();
 }
 
 // ─── Analytics ────────────────────────────────────────────────
@@ -1360,7 +1360,7 @@ function closeDataModal() { document.getElementById('dataModal').classList.remov
 function closeDataModalBg(e){ if(e.target===document.getElementById('dataModal')) closeDataModal(); }
 
 function closeDeleteModal(){ S.pendingDelete=null; document.getElementById('deleteModal').classList.remove('open'); }
-function closeDeleteModalBg(e){ if(e.target===document.getElementById('deleteModal')) closeDeleteModal(); }
+function closeDeleteModalBg(e){ if(!e.target.closest('.modal-sheet')) closeDeleteModal(); }
 
 function openThemeModal()  { document.getElementById('themeModal').classList.add('open'); }
 function closeThemeModal() { document.getElementById('themeModal').classList.remove('open'); }
