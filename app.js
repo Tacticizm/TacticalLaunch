@@ -967,7 +967,10 @@ function curveFeedFmt(v){
   return {t:'0',c:'#DDE0F5'};
 }
 
-function renderFeed(){ orbital_renderFeed(); classic_renderFeed(); }
+function renderFeed(){
+  try { orbital_renderFeed(); } catch(e){ console.error('[TL] orbital feed error:', e); }
+  try { classic_renderFeed(); } catch(e){ console.error('[TL] classic feed error:', e); }
+}
 
 function orbital_renderFeed(){
   const feed =document.getElementById('o-feed');
@@ -1100,8 +1103,9 @@ function orbital_renderFeed(){
 function classic_renderFeed(){
   const list=document.getElementById('c-shotList');
   const cnt =document.getElementById('c-shotCount');
-  if(!list) return;
+  if(!list){ console.error('[TL] c-shotList not found'); return; }
   const total = S.shots.length;
+  console.log('[TL] classic_renderFeed: total='+total+', limit='+S.feedFilter.limit);
   const shots = filteredFeedShots();
   const filteredTotal = filteredFeedShots._total;
   classic_renderFeedFilter();
@@ -1218,7 +1222,9 @@ function classic_renderFeed(){
 
 // ─── Render All ───────────────────────────────────────────────
 function renderAll(){
-  buildClubs(); renderStats(); renderFeed();
+  try { buildClubs(); } catch(e){ console.error('[TL] buildClubs error:', e); }
+  try { renderStats(); } catch(e){ console.error('[TL] renderStats error:', e); }
+  try { renderFeed(); } catch(e){ console.error('[TL] renderFeed error:', e); }
   updateUnitToggleUI(); updateMetricUnitLabels();
   setSubmitState(S.editingId !== null);
   const oa=document.getElementById('o-analyticsClub');
