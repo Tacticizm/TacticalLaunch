@@ -784,6 +784,16 @@ function setFeedFilter(type, val){
   S.feedFilter[type] = val;
   renderFeed();
 }
+function feedHasActiveFilters(){
+  const ff = S.feedFilter;
+  return ff.mode !== 'all' || ff.lie !== 'all' || ff.club !== 'all' || !!ff.dateFrom;
+}
+function clearFeedFilters(){
+  S.feedFilter.mode = 'all'; S.feedFilter.lie = 'all'; S.feedFilter.club = 'all';
+  S.feedFilter.dateFrom = null; S.feedFilter.dateTo = null;
+  S.feedFilter.hourFrom = 0; S.feedFilter.hourTo = 23;
+  renderFeed();
+}
 
 function filteredFeedShots(){
   const ff = S.feedFilter;
@@ -977,12 +987,26 @@ function orbital_renderFeed(){
   }
   if(!total){if(feed)feed.innerHTML=''; if(empty)empty.style.display='block'; return;}
   if(empty)empty.style.display='none';
+  // If filters produce no results, fall back to last 5 shots with a banner
+  let showingFallback = false;
+  let displayShots = shots;
   if(!shots.length){
-    if(feed) feed.innerHTML=`<p class="text-sm text-center py-6 font-semibold" style="color:#252840;">No shots match the filter.</p>`;
-    return;
+    displayShots = S.shots.slice(0, 5);
+    showingFallback = true;
   }
   const noV=`<span style="color:#252840;">—</span>`;
-  feed.innerHTML = shots.map(s=>{
+  const fallbackBanner = showingFallback ? `
+    <div class="rounded-2xl p-3 mb-3 flex items-center justify-between"
+      style="background:rgba(255,85,0,.06);border:1px solid rgba(255,85,0,.18);">
+      <div>
+        <p class="text-xs font-black tracking-widest mb-0.5" style="color:#FF5500;">NO FILTER MATCHES</p>
+        <p class="text-xs" style="color:#4E5275;">Showing last ${displayShots.length} recent shots</p>
+      </div>
+      ${feedHasActiveFilters() ? `<button onclick="clearFeedFilters()"
+        class="o-kb px-3 py-1.5 rounded-xl text-xs font-black tracking-widest shrink-0"
+        style="background:rgba(255,85,0,.12);border:1px solid rgba(255,85,0,.3);color:#FF5500;">CLEAR</button>` : ''}
+    </div>` : '';
+  feed.innerHTML = fallbackBanner + displayShots.map(s=>{
     const ed=s.id===S.editingId;
     const cv=curveFeedFmt(s.curve);
     const lie=s.lie||'tee';
@@ -1061,8 +1085,8 @@ function orbital_renderFeed(){
       </div>
     </div>`;
   }).join('');
-  // Load-more button
-  if(S.feedFilter.limit > 0 && shots.length < filteredTotal){
+  // Load-more button (only when showing real filtered results, not fallback)
+  if(!showingFallback && S.feedFilter.limit > 0 && shots.length < filteredTotal){
     const remaining = filteredTotal - shots.length;
     const bump = Math.min(25, remaining);
     feed.innerHTML += `<button onclick="setFeedFilter('limit',${S.feedFilter.limit+bump})"
@@ -1093,11 +1117,24 @@ function classic_renderFeed(){
     list.innerHTML=`<div class="text-xs text-center py-4 c-tech uppercase tracking-wider" style="color:rgba(228,228,231,.3);">No historic payload telemetry</div>`;
     return;
   }
+  let showingFallback = false;
+  let displayShots = shots;
   if(!shots.length){
-    list.innerHTML=`<div class="text-xs text-center py-4 c-tech uppercase tracking-wider" style="color:rgba(228,228,231,.3);">No shots match the filter.</div>`;
-    return;
+    displayShots = S.shots.slice(0, 5);
+    showingFallback = true;
   }
-  list.innerHTML = shots.map(s=>{
+  const fallbackBanner = showingFallback ? `
+    <div class="flex items-center justify-between py-2 mb-2 rounded-lg px-2"
+      style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.15);">
+      <div>
+        <p class="c-tech font-bold tracking-widest uppercase" style="font-size:9px;color:#EF4444;">No filter matches</p>
+        <p class="c-tech" style="font-size:9px;color:rgba(228,228,231,.35);">Showing last ${displayShots.length} recent shots</p>
+      </div>
+      ${feedHasActiveFilters() ? `<button onclick="clearFeedFilters()"
+        class="c-kb c-tech font-bold tracking-widest rounded-lg px-2 py-1"
+        style="font-size:9px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#EF4444;">CLEAR</button>` : ''}
+    </div>` : '';
+  list.innerHTML = fallbackBanner + displayShots.map(s=>{
     const ed=s.id===S.editingId;
     const lie=s.lie||'tee';
     const lieL=lie==='tee'?'TEE':'GRS';
@@ -1167,8 +1204,8 @@ function classic_renderFeed(){
       </div>
     </div>`;
   }).join('');
-  // Load-more button
-  if(S.feedFilter.limit > 0 && shots.length < filteredTotal){
+  // Load-more button (only when showing real filtered results, not fallback)
+  if(!showingFallback && S.feedFilter.limit > 0 && shots.length < filteredTotal){
     const remaining = filteredTotal - shots.length;
     const bump = Math.min(25, remaining);
     list.innerHTML += `<button onclick="setFeedFilter('limit',${S.feedFilter.limit+bump})"
