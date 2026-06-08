@@ -97,6 +97,16 @@
       SELECT FILE
     </button>
     <p id="importFileName" class="text-xs text-center mb-1" style="color:#4E5275;min-height:16px;"></p>
+    <div class="mb-5" style="height:1px;background:linear-gradient(to right,#4E5275,transparent);opacity:0.3;"></div>
+    <p class="text-xs font-black tracking-widest mb-1" style="color:#4E5275;">MAINTENANCE</p>
+    <p class="text-xs leading-relaxed mb-3" style="color:#4E5275;">
+      Re-runs the full data migration — fixes <strong style="color:#DDE0F5;">ID types, club names, duplicate shots</strong>, and ensures every shot has all required fields.
+    </p>
+    <button onclick="repairShots(); closeDataModal();"
+      class="o-kb w-full py-3.5 rounded-2xl text-sm font-black tracking-widest mb-3"
+      style="background:#141526;border:1.5px solid #4E5275;color:#4E5275;">
+      ⚙ REPAIR SHOT DATA
+    </button>
     <div style="height:max(env(safe-area-inset-bottom),20px);"></div>
   </div>
 </div>

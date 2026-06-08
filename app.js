@@ -58,20 +58,38 @@ const S = {
 // ─── Migration + Normalization ────────────────────────────────
 function migrateAndLoad(){
   let shots = [];
-  const seen = new Set();
+  const seen = new Set(); // keyed by coerced numeric id to avoid string/number dupes
 
   try {
     const a = JSON.parse(localStorage.getItem('tl_v2') || '[]');
-    if (Array.isArray(a)) a.forEach(s => { if (!seen.has(s.id)){ seen.add(s.id); shots.push(s); }});
+    if (Array.isArray(a)) a.forEach(s => {
+      const key = +(s.id ?? 0);
+      if (!seen.has(key)){ seen.add(key); shots.push(s); }
+    });
   } catch(_){}
 
   try {
     const b = JSON.parse(localStorage.getItem('tactical_launch_history') || '[]');
-    if (Array.isArray(b)) b.forEach(s => { if (!seen.has(s.id)){ seen.add(s.id); shots.push(s); }});
+    if (Array.isArray(b)) b.forEach(s => {
+      const key = +(s.id ?? 0);
+      if (!seen.has(key)){ seen.add(key); shots.push(s); }
+    });
   } catch(_){}
 
   S.shots = fixBulkStamp(shots.map(normalizeShot)).sort((a,b) => b.ts - a.ts);
   localStorage.setItem(LS_SHOTS, JSON.stringify(S.shots));
+}
+
+function repairShots(){
+  const before = S.shots.length;
+  migrateAndLoad();
+  const after = S.shots.length;
+  renderAll();
+  const dupes = before - after;
+  const msg = dupes > 0
+    ? `Repaired ${after} shots · removed ${dupes} duplicate${dupes!==1?'s':''}`
+    : `${after} shot${after!==1?'s':''} verified & updated`;
+  toast(msg, 'ok');
 }
 
 function normalizeShot(s){
