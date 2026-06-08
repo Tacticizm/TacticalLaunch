@@ -122,7 +122,7 @@ function normalizeShot(s){
   const mode = s.mode || ((apex != null || curve != null) ? 'practice' : 'topgolf');
 
   return {
-    id:    s.id ?? Date.now(),
+    id:    +(s.id ?? Date.now()),
     ts:    Number(ts),
     club,
     lie:   s.lie   || 'tee',
@@ -473,8 +473,8 @@ function clearInputs(){
 }
 
 function editShot(id){
-  const s = S.shots.find(x=>x.id===id); if(!s) return;
-  S.editingId = id;
+  const s = S.shots.find(x=>x.id===id||+x.id===+id); if(!s) return;
+  S.editingId = +id;
   S.vals.carry = String(s.carry??''); S.vals.speed = String(s.speed??'');
   S.vals.hang  = s.hang  !=null ? String(s.hang)  : '';
   S.vals.apex  = s.apex  !=null ? String(s.apex)  : '';
@@ -491,7 +491,7 @@ function cancelEdit(){
 }
 
 function requestDelete(id){
-  S.pendingDelete=id;
+  S.pendingDelete=+id;
   document.getElementById('deleteModal').classList.add('open');
 }
 function confirmDelete(){
@@ -1353,7 +1353,7 @@ function closeThemeModalBg(e){ if(e.target===document.getElementById('themeModal
 let _trajRAF = null;
 
 function openTrajectory(id){
-  const shot = S.shots.find(s => s.id === id);
+  const shot = S.shots.find(s => s.id === id || +s.id === +id);
   if (!shot) return;
 
   // Club / lie header
