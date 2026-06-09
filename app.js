@@ -48,7 +48,9 @@ const S = {
   migrateAndLoad();
   S.theme  = localStorage.getItem(LS_THEME) || 'orbital';
   S.metric = localStorage.getItem(LS_UNITS) === '1';
-  S.mode   = localStorage.getItem(LS_MODE)  || 'topgolf';
+  const VALID_MODES = ['topgolf','topscore','practice'];
+  const savedMode   = localStorage.getItem(LS_MODE);
+  S.mode = VALID_MODES.includes(savedMode) ? savedMode : 'topgolf';
   applyTheme(S.theme, false);
   setFocus('carry'); setLie('tee'); setTab('all');
   renderAll();
