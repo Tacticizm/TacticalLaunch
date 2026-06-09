@@ -32,6 +32,7 @@ const LS_SHOTS = 'tl_v2';
 const LS_THEME = 'tl_theme';
 const LS_UNITS = 'tl_units';
 const LS_MODE  = 'tl_mode';
+const LS_CLUB  = 'tl_club';
 
 // ─── State ────────────────────────────────────────────────────
 const S = {
@@ -51,6 +52,8 @@ const S = {
   const VALID_MODES = ['topgolf','topscore','practice'];
   const savedMode   = localStorage.getItem(LS_MODE);
   S.mode = VALID_MODES.includes(savedMode) ? savedMode : 'topgolf';
+  const savedClub   = localStorage.getItem(LS_CLUB);
+  S.club = CLUBS.includes(savedClub) ? savedClub : 'Driver';
   applyTheme(S.theme, false);
   setFocus('carry'); setLie('tee'); setTab('all');
   renderAll();
@@ -305,10 +308,14 @@ function buildClubs(){
   orbital_buildClubs(); classic_buildClubs();
 }
 function selectClub(c){
-  S.club = c; buildClubs(); renderStats();
+  if (!CLUBS.includes(c)) c = 'Driver';
+  S.club = c;
+  localStorage.setItem(LS_CLUB, c);
+  buildClubs(); renderStats();
   const oa = document.getElementById('o-analyticsClub');
   if (oa) oa.textContent = c.toUpperCase();
-  document.getElementById('c-statsHeading').textContent = c.toUpperCase() + ' PERFORMANCE';
+  const sh = document.getElementById('c-statsHeading');
+  if (sh) sh.textContent = c.toUpperCase() + ' PERFORMANCE';
 }
 
 function orbital_buildClubs(){
@@ -1247,6 +1254,7 @@ function renderAll(){
   try { renderFeed(); } catch(e){ console.error('[TL] renderFeed error:', e); }
   updateUnitToggleUI(); updateMetricUnitLabels();
   setSubmitState(S.editingId !== null);
+  if (!CLUBS.includes(S.club)) S.club = 'Driver';
   const oa=document.getElementById('o-analyticsClub');
   if(oa) oa.textContent=S.club.toUpperCase();
   const sh=document.getElementById('c-statsHeading');
