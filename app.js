@@ -1368,13 +1368,14 @@ function closeThemeModalBg(e){ if(e.target===document.getElementById('themeModal
 
 // ─── Trajectory Visualization ─────────────────────────────────
 
+// ─── Trajectory View ─────────────────────────────────────────────────────────
 let _trajRAF = null;
 
 function openTrajectory(id){
   const shot = S.shots.find(s => s.id === id || +s.id === +id);
   if (!shot) return;
 
-  // Club / lie header
+  // Header
   const clubEl = document.getElementById('traj-club');
   const lieEl  = document.getElementById('traj-lie');
   if (clubEl) clubEl.textContent = shot.club;
@@ -1407,13 +1408,25 @@ function openTrajectory(id){
       mkStat('CURVE', fCrv,   unitLabel('curve'));
   }
 
+  // Size canvas directly from window — no DOM layout dependency at all.
+  // header ~58 + stats ~46 + footer ~28 + safe-area ~18 = ~150px
+  const canvas = document.getElementById('trajCanvas');
+  const wrap   = document.getElementById('traj-wrap');
+  if (canvas && wrap){
+    const W   = window.innerWidth;
+    const H   = Math.max(220, Math.floor(window.innerHeight * 0.86) - 150);
+    const dpr = window.devicePixelRatio || 1;
+    wrap.style.height = H + 'px';
+    canvas.width      = Math.round(W * dpr);
+    canvas.height     = Math.round(H * dpr);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+  }
+
   document.getElementById('trajModal').classList.add('open');
-  // Wait for CSS transition to settle before sizing the canvas.
-  // Double-rAF flushes the style/layout pass; the extra 260ms covers
-  // the sheet slide-up transition so clientHeight is fully resolved.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    setTimeout(() => animateTrajectory(shot), 260);
-  }));
+  if (_trajRAF){ cancelAnimationFrame(_trajRAF); _trajRAF = null; }
+  // One rAF gives the browser a frame to paint the modal before animation starts
+  requestAnimationFrame(() => _trajLoop(shot, performance.now()));
 }
 
 function closeTrajModal(){
@@ -1421,299 +1434,212 @@ function closeTrajModal(){
   document.getElementById('trajModal').classList.remove('open');
 }
 function closeTrajModalBg(e){
-  if (e.target === document.getElementById('trajModal')) closeTrajModal();
+  if (!e.target.closest('.modal-sheet')) closeTrajModal();
 }
 
-function animateTrajectory(shot){
-  if (_trajRAF){ cancelAnimationFrame(_trajRAF); _trajRAF = null; }
-  const canvas = document.getElementById('trajCanvas');
-  const wrap   = document.getElementById('traj-wrap');
-  if (!canvas || !wrap) return;
+const _TRAJ_FLY  = 2400;
+const _TRAJ_HOLD = 2200;
 
-  // Size canvas to physical pixels for crisp rendering.
-  // Use getBoundingClientRect as primary source — it's reliable even when
-  // flex layout hasn't fully resolved clientHeight on iOS Safari.
-  const dpr  = window.devicePixelRatio || 1;
-  const rect  = wrap.getBoundingClientRect();
-  let   W     = rect.width  || wrap.clientWidth  || 0;
-  let   H     = rect.height || wrap.clientHeight || 0;
-  // If flex layout still hasn't resolved, derive from modal sheet height
-  if (!H){
-    const sheet = document.querySelector('#trajModal .modal-sheet');
-    H = sheet ? sheet.clientHeight * 0.75 : Math.floor(window.innerHeight * 0.55);
-  }
-  if (!W) W = window.innerWidth;
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  const FLY_MS  = 2400;
-  const HOLD_MS = 2200;
-  const START   = performance.now();
-
+function _trajLoop(shot, start){
   function frame(now){
-    if (!document.getElementById('trajModal').classList.contains('open')){ return; }
-    const elapsed = now - START;
+    if (!document.getElementById('trajModal').classList.contains('open')) return;
+    const elapsed = now - start;
     let progress, postLand;
-    if (elapsed < FLY_MS){
-      const t = elapsed / FLY_MS;
-      // ease-in-out
-      progress = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+    if (elapsed < _TRAJ_FLY){
+      const t = elapsed / _TRAJ_FLY;
+      progress = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;  // ease-in-out
       postLand = 0;
     } else {
       progress = 1;
-      postLand = elapsed - FLY_MS;
+      postLand = elapsed - _TRAJ_FLY;
     }
-    trajDraw(ctx, W, H, shot, progress, postLand);
-    if (elapsed < FLY_MS + HOLD_MS){
+    _trajDraw(shot, progress, postLand);
+    if (elapsed < _TRAJ_FLY + _TRAJ_HOLD){
       _trajRAF = requestAnimationFrame(frame);
     } else {
       _trajRAF = null;
-      setTimeout(() => animateTrajectory(shot), 300);
+      setTimeout(() => {
+        if (document.getElementById('trajModal').classList.contains('open')){
+          _trajLoop(shot, performance.now());
+        }
+      }, 400);
     }
   }
   _trajRAF = requestAnimationFrame(frame);
 }
 
-function trajDraw(ctx, W, H, shot, progress, postLand){
-  // ── Scene parameters ──────────────────────────────────────────
-  const carry    = shot.carry  || 200;
-  const apexFt   = shot.apex   != null ? shot.apex : carry * 0.45;
-  const apexYds  = apexFt / 3;             // feet → yards
-  const curveYds = shot.curve  || 0;
+// 2-D side-view trajectory (left = tee, right = landing, up = height)
+function _trajDraw(shot, progress, postLand){
+  const canvas = document.getElementById('trajCanvas');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.width  / dpr;
+  const H   = canvas.height / dpr;
+  if (!W || !H) return;
 
-  // Camera: close behind tee so arc fills canvas, tee sits near bottom
-  const BEHIND  = 3;        // yards behind tee (was 10 — close cam = tee lower in frame)
-  const EYE_Y   = 1.8;      // yards eye height
-  const FL      = W * 0.65; // focal length (pixels)
-  const HOR_Y   = H * 0.50; // horizon at 50% from top
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  function proj(wx, wy, wz){
-    const dz = wz + BEHIND;
-    if (dz < 0.05) return null;
-    const s = FL / dz;
-    return { x: W/2 + wx*s, y: HOR_Y + (EYE_Y - wy)*s, s };
-  }
+  const carry   = shot.carry || 200;
+  const apexFt  = shot.apex != null ? shot.apex : carry * 0.45;
+  const apexYds = apexFt / 3;
 
+  // Layout padding
+  const padL = 32, padR = 32, padT = 40, padB = 52;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const gndY  = padT + plotH;
+
+  // World → canvas
+  const xS = plotW / carry;
+  const yS = plotH / Math.max(apexYds, 1);
+  const cx = x => padL + x * xS;
+  const cy = y => gndY - y * yS;
+
+  // ── Background ──────────────────────────────────────────────────
   ctx.clearRect(0, 0, W, H);
+  const sky = ctx.createLinearGradient(0, 0, 0, gndY);
+  sky.addColorStop(0, '#060812');
+  sky.addColorStop(1, '#0C1228');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, gndY);
 
-  // ── Sky ───────────────────────────────────────────────────────
-  const sky = ctx.createLinearGradient(0, 0, 0, HOR_Y + 10);
-  sky.addColorStop(0, '#04050D');
-  sky.addColorStop(1, '#080F1E');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, HOR_Y + 2);
+  const gnd = ctx.createLinearGradient(0, gndY, 0, H);
+  gnd.addColorStop(0, '#081510');
+  gnd.addColorStop(1, '#030808');
+  ctx.fillStyle = gnd; ctx.fillRect(0, gndY, W, H - gndY);
 
-  // ── Ground ────────────────────────────────────────────────────
-  const gnd = ctx.createLinearGradient(0, HOR_Y, 0, H);
-  gnd.addColorStop(0, '#061208');
-  gnd.addColorStop(1, '#020804');
-  ctx.fillStyle = gnd;
-  ctx.fillRect(0, HOR_Y, W, H - HOR_Y);
+  // Ground glow strip
+  const gl = ctx.createLinearGradient(0, gndY - 5, 0, gndY + 5);
+  gl.addColorStop(0, 'rgba(74,222,128,0)');
+  gl.addColorStop(0.5, 'rgba(74,222,128,0.14)');
+  gl.addColorStop(1, 'rgba(74,222,128,0)');
+  ctx.fillStyle = gl; ctx.fillRect(0, gndY - 5, W, 10);
 
-  // ── Horizon glow ──────────────────────────────────────────────
-  const hgl = ctx.createLinearGradient(0, HOR_Y - 8, 0, HOR_Y + 8);
-  hgl.addColorStop(0, 'rgba(56,189,248,0)');
-  hgl.addColorStop(0.5, 'rgba(56,189,248,0.08)');
-  hgl.addColorStop(1, 'rgba(56,189,248,0)');
-  ctx.fillStyle = hgl;
-  ctx.fillRect(0, HOR_Y - 8, W, 16);
-
-  // ── Fairway grid ─────────────────────────────────────────────
-  const FW   = 8;  // fixed half-width yards (close camera needs narrow grid)
-  const step = carry > 220 ? 50 : 25;
-  // Minimum Z where outer lane lines stay within canvas width
-  const laneStartZ = Math.max(0.5, (FW * 2 * FL / W) - BEHIND);
-
-  // Longitudinal lines
-  const laneXs = [-FW, -FW*0.5, 0, FW*0.5, FW];
-  for (const lx of laneXs){
-    const p0 = proj(lx, 0, laneStartZ);
-    const p1 = proj(lx, 0, carry * 1.5);
-    if (!p0 || !p1) continue;
-    ctx.strokeStyle = lx === 0 ? 'rgba(56,189,248,0.09)' : 'rgba(74,222,128,0.055)';
-    ctx.lineWidth   = lx === 0 ? 0.8 : 0.5;
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  // ── Yardage markers ──────────────────────────────────────────────
+  const step = carry <= 100 ? 25 : carry <= 200 ? 50 : 100;
+  ctx.font      = '8px "Roboto Mono",monospace';
+  ctx.textAlign = 'center';
+  for (let d = step; d <= carry; d += step){
+    const x = cx(d);
+    ctx.strokeStyle = 'rgba(74,222,128,0.18)';
+    ctx.lineWidth   = 0.7;
+    ctx.beginPath(); ctx.moveTo(x, gndY); ctx.lineTo(x, gndY + 5); ctx.stroke();
+    ctx.fillStyle = 'rgba(74,222,128,0.30)';
+    ctx.fillText(String(d), x, gndY + 16);
   }
+  ctx.fillStyle = 'rgba(74,222,128,0.20)';
+  ctx.fillText('0', cx(0), gndY + 16);
 
-  // Cross lines + yardage labels
-  for (let d = step; d <= carry * 1.15; d += step){
-    const crossW = Math.min(FW, d * FW / (laneStartZ + BEHIND)); // clip near lines
-    const pL = proj(-crossW, 0, d), pR = proj(crossW, 0, d);
-    if (!pL || !pR) continue;
-    const major = d % 100 === 0;
-    ctx.strokeStyle = `rgba(74,222,128,${major ? 0.11 : 0.055})`;
-    ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(pL.x, pL.y); ctx.lineTo(pR.x, pR.y); ctx.stroke();
-    if (major){
-      const pm = proj(0, 0, d);
-      if (pm){
-        const fs = Math.max(7, Math.min(12, pm.s * 5.5));
-        ctx.fillStyle = 'rgba(74,222,128,0.22)';
-        ctx.font      = `${fs}px "Roboto Mono",monospace`;
-        ctx.textAlign = 'center';
-        ctx.fillText(`${d}`, pm.x, pm.y - 3);
-      }
-    }
-  }
-
-  // ── Landing target ────────────────────────────────────────────
-  const lpj = proj(curveYds, 0, carry);
-  if (lpj){
-    const rx = 20 * lpj.s, ry = 6 * lpj.s;
-    const tg = ctx.createRadialGradient(lpj.x, lpj.y, 0, lpj.x, lpj.y, rx * 2.8);
-    tg.addColorStop(0, 'rgba(56,189,248,0.10)');
-    tg.addColorStop(1, 'rgba(56,189,248,0)');
-    ctx.fillStyle = tg;
-    ctx.beginPath();
-    ctx.ellipse(lpj.x, lpj.y, rx*2.8, ry*2.8, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(56,189,248,0.20)';
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.ellipse(lpj.x, lpj.y, rx, ry, 0, 0, Math.PI*2);
-    ctx.stroke();
-  }
-
-  // ── Build trajectory points ───────────────────────────────────
-  // wx uses t² so ball launches straight then bends progressively (sidespin effect)
-  const STEPS = 100;
+  // ── Arc points ───────────────────────────────────────────────────
+  const STEPS = 120;
   const pts   = [];
   for (let i = 0; i <= STEPS; i++){
-    const t  = i / STEPS;
-    const wx = curveYds * t * t;
-    const wy = 4 * apexYds * t * (1 - t);
-    const wz = carry * t;
-    const p  = proj(wx, wy, wz);
-    if (p) pts.push({ ...p, t });
+    const t = i / STEPS;
+    pts.push({ x: cx(carry * t), y: cy(4 * apexYds * t * (1 - t)) });
   }
-
   const maxI = Math.max(1, Math.round(progress * pts.length));
   const vis  = pts.slice(0, maxI);
 
   if (vis.length > 1){
-    // Ground shadow (dashed)
-    ctx.save();
-    ctx.setLineDash([2, 7]);
-    ctx.lineWidth   = 0.7;
-    ctx.strokeStyle = 'rgba(56,189,248,0.11)';
-    ctx.beginPath();
-    let first = true;
-    for (let i = 0; i <= Math.round(progress * STEPS); i++){
-      const t  = i / STEPS;
-      const p  = proj(curveYds * t * t, 0, carry * t);
-      if (!p) continue;
-      first ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
-      first = false;
-    }
-    ctx.stroke();
-    ctx.restore();
-
-    // Outer glow layers
+    // Outer glow
     for (let g = 3; g >= 0; g--){
       ctx.beginPath();
       ctx.moveTo(vis[0].x, vis[0].y);
       for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x, vis[i].y);
-      ctx.strokeStyle = `rgba(56,189,248,${0.04 + g*0.035})`;
-      ctx.lineWidth   = 1.8 + g * 2.8;
+      ctx.strokeStyle = `rgba(56,189,248,${0.04 + g * 0.03})`;
+      ctx.lineWidth   = 2 + g * 3.5;
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       ctx.stroke();
     }
-
-    // Core arc line
+    // Core arc
     ctx.beginPath();
     ctx.moveTo(vis[0].x, vis[0].y);
     for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x, vis[i].y);
-    ctx.strokeStyle = 'rgba(56,189,248,0.88)';
-    ctx.lineWidth   = 1.6;
+    ctx.strokeStyle = 'rgba(56,189,248,0.92)';
+    ctx.lineWidth   = 2;
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     ctx.stroke();
   }
 
-  // ── Apex marker ───────────────────────────────────────────────
-  (function(){
-    const aT  = 0.5;
-    const apj = proj(curveYds * aT * aT, apexYds, carry * aT);
-    if (!apj) return;
-    // Fade in once the ball has passed the apex
-    const fade = Math.min(1, Math.max(0, (progress - 0.44) / 0.10));
-    if (fade <= 0) return;
-
-    // Glow halo
-    const gr = ctx.createRadialGradient(apj.x, apj.y, 0, apj.x, apj.y, 16);
-    gr.addColorStop(0, `rgba(56,189,248,${0.45 * fade})`);
+  // ── Apex marker ──────────────────────────────────────────────────
+  const fade = Math.min(1, Math.max(0, (progress - 0.44) / 0.12));
+  if (fade > 0 && apexFt > 0){
+    const ax = cx(carry * 0.5), ay = cy(apexYds);
+    // Dashed drop line
+    ctx.save();
+    ctx.setLineDash([2, 5]);
+    ctx.strokeStyle = `rgba(56,189,248,${0.20 * fade})`;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax, gndY); ctx.stroke();
+    ctx.restore();
+    // Halo
+    const gr = ctx.createRadialGradient(ax, ay, 0, ax, ay, 16);
+    gr.addColorStop(0, `rgba(56,189,248,${0.50 * fade})`);
     gr.addColorStop(1, 'rgba(56,189,248,0)');
     ctx.beginPath(); ctx.fillStyle = gr;
-    ctx.arc(apj.x, apj.y, 16, 0, Math.PI * 2); ctx.fill();
-
-    // White dot
-    ctx.beginPath();
-    ctx.fillStyle = `rgba(255,255,255,${0.95 * fade})`;
-    ctx.arc(apj.x, apj.y, 3, 0, Math.PI * 2); ctx.fill();
-
-    // Height label above the dot
+    ctx.arc(ax, ay, 16, 0, Math.PI * 2); ctx.fill();
+    // Dot
+    ctx.beginPath(); ctx.fillStyle = `rgba(255,255,255,${0.95 * fade})`;
+    ctx.arc(ax, ay, 2.5, 0, Math.PI * 2); ctx.fill();
+    // Label
     const lbl = shot.apex != null
-      ? `${dispVal(shot.apex, 'height')} ${unitLabel('height')}`
+      ? `${dispVal(shot.apex,'height')} ${unitLabel('height')}`
       : `~${Math.round(apexFt)} ${unitLabel('height')}`;
-    ctx.font = 'bold 10px "Roboto Mono",monospace';
+    ctx.font = 'bold 9px "Roboto Mono",monospace';
     ctx.textAlign = 'center';
-    ctx.fillStyle = `rgba(74,222,128,${0.9 * fade})`;
-    ctx.fillText(lbl, apj.x, apj.y - 10);
-  })();
+    ctx.fillStyle = `rgba(74,222,128,${0.88 * fade})`;
+    ctx.fillText(lbl, ax, ay - 12);
+  }
 
-  // ── Ball ──────────────────────────────────────────────────────
+  // ── Ball ─────────────────────────────────────────────────────────
   if (vis.length){
     const b  = vis[vis.length - 1];
-    const sz = Math.max(2.5, Math.min(12, b.s * 3.2));
-
-    // Outer glow
-    const glw = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, sz * 7);
-    glw.addColorStop(0,   'rgba(255,255,255,0.50)');
-    glw.addColorStop(0.2, 'rgba(56,189,248,0.28)');
-    glw.addColorStop(1,   'rgba(56,189,248,0)');
+    const sz = 5.5;
+    const glw = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, sz * 6);
+    glw.addColorStop(0,    'rgba(255,255,255,0.55)');
+    glw.addColorStop(0.25, 'rgba(56,189,248,0.32)');
+    glw.addColorStop(1,    'rgba(56,189,248,0)');
     ctx.beginPath(); ctx.fillStyle = glw;
-    ctx.arc(b.x, b.y, sz * 7, 0, Math.PI * 2); ctx.fill();
-
-    // Ball body (radial highlight)
+    ctx.arc(b.x, b.y, sz * 6, 0, Math.PI * 2); ctx.fill();
     const bd = ctx.createRadialGradient(b.x - sz*0.3, b.y - sz*0.3, 0, b.x, b.y, sz);
-    bd.addColorStop(0, '#ffffff');
-    bd.addColorStop(1, '#c8e6f8');
+    bd.addColorStop(0, '#ffffff'); bd.addColorStop(1, '#b8ddf8');
     ctx.beginPath(); ctx.fillStyle = bd;
-    ctx.arc(b.x, b.y, Math.max(2, sz), 0, Math.PI * 2); ctx.fill();
+    ctx.arc(b.x, b.y, sz, 0, Math.PI * 2); ctx.fill();
   }
 
-  // ── Impact rings (expand after landing) ───────────────────────
-  if (progress >= 1 && lpj && postLand > 0){
+  // ── Impact rings + carry label ─────────────────────────────────
+  if (progress >= 1 && postLand > 0){
+    const lx = cx(carry);
     for (let r = 1; r <= 3; r++){
-      const delay  = (r - 1) * 200;
-      const rp     = Math.min(1, Math.max(0, (postLand - delay) / 750));
+      const rp = Math.min(1, Math.max(0, (postLand - (r-1)*200) / 700));
       if (rp <= 0) continue;
-      const rx     = 24 * r * lpj.s * rp;
-      const ry     = 8  * r * lpj.s * rp;
-      const alpha  = (1 - rp) * 0.55;
-      ctx.strokeStyle = `rgba(56,189,248,${alpha})`;
+      ctx.strokeStyle = `rgba(56,189,248,${(1-rp)*0.50})`;
       ctx.lineWidth   = 1.4;
       ctx.beginPath();
-      ctx.ellipse(lpj.x, lpj.y, Math.max(0.1, rx), Math.max(0.1, ry), 0, 0, Math.PI*2);
+      ctx.ellipse(lx, gndY, Math.max(0.1, 22*r*rp), Math.max(0.1, 8*r*rp), 0, 0, Math.PI*2);
       ctx.stroke();
     }
-    // Carry label floating above landing
-    if (lpj && shot.carry != null){
-      const label = `${dispVal(shot.carry,'dist')} ${unitLabel('dist')}`;
-      const fs    = Math.max(9, Math.min(14, lpj.s * 6));
-      ctx.font      = `bold ${fs}px "Roboto Mono",monospace`;
+    if (shot.carry != null){
+      ctx.font = 'bold 10px "Roboto Mono",monospace';
       ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(74,222,128,0.80)';
-      ctx.fillText(label, lpj.x, lpj.y - 14 * lpj.s - 6);
+      ctx.fillStyle = 'rgba(74,222,128,0.85)';
+      ctx.fillText(`${dispVal(shot.carry,'dist')} ${unitLabel('dist')}`, cx(carry), gndY - 16);
     }
   }
 
-  // ── Tee/origin dot ────────────────────────────────────────────
-  const tp = proj(0, 0, 0.2);
-  if (tp){
-    ctx.fillStyle = (shot.lie || 'tee') === 'tee' ? '#3B82F6' : '#4ADE80';
-    ctx.beginPath(); ctx.arc(tp.x, tp.y, 3.5, 0, Math.PI * 2); ctx.fill();
+  // ── Tee dot ──────────────────────────────────────────────────────
+  ctx.fillStyle = (shot.lie || 'tee') === 'tee' ? '#3B82F6' : '#4ADE80';
+  ctx.beginPath(); ctx.arc(cx(0), gndY, 3.5, 0, Math.PI * 2); ctx.fill();
+
+  // ── Curve label (if any) ─────────────────────────────────────────
+  if (shot.curve && Math.abs(shot.curve) > 0.5){
+    const dir  = shot.curve < 0 ? '◀ LEFT' : 'RIGHT ▶';
+    const cAbs = dispVal(Math.abs(shot.curve), 'curve');
+    ctx.font      = '8px "Roboto Mono",monospace';
+    ctx.textAlign = shot.curve < 0 ? 'left' : 'right';
+    ctx.fillStyle = 'rgba(255,62,165,0.55)';
+    ctx.fillText(`${dir}  ${cAbs} ${unitLabel('curve')}`,
+      shot.curve < 0 ? padL : W - padR, H - 8);
   }
 }
 
