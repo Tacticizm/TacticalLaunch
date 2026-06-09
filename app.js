@@ -1408,8 +1408,12 @@ function openTrajectory(id){
   }
 
   document.getElementById('trajModal').classList.add('open');
-  // Give the modal transition time to open before sizing canvas
-  setTimeout(() => animateTrajectory(shot), 120);
+  // Wait for CSS transition to settle before sizing the canvas.
+  // Double-rAF flushes the style/layout pass; the extra 260ms covers
+  // the sheet slide-up transition so clientHeight is fully resolved.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    setTimeout(() => animateTrajectory(shot), 260);
+  }));
 }
 
 function closeTrajModal(){
@@ -1426,10 +1430,19 @@ function animateTrajectory(shot){
   const wrap   = document.getElementById('traj-wrap');
   if (!canvas || !wrap) return;
 
-  // Size canvas to physical pixels for crisp rendering
-  const dpr = window.devicePixelRatio || 1;
-  const W   = wrap.clientWidth;
-  const H   = wrap.clientHeight;
+  // Size canvas to physical pixels for crisp rendering.
+  // Use getBoundingClientRect as primary source — it's reliable even when
+  // flex layout hasn't fully resolved clientHeight on iOS Safari.
+  const dpr  = window.devicePixelRatio || 1;
+  const rect  = wrap.getBoundingClientRect();
+  let   W     = rect.width  || wrap.clientWidth  || 0;
+  let   H     = rect.height || wrap.clientHeight || 0;
+  // If flex layout still hasn't resolved, derive from modal sheet height
+  if (!H){
+    const sheet = document.querySelector('#trajModal .modal-sheet');
+    H = sheet ? sheet.clientHeight * 0.75 : Math.floor(window.innerHeight * 0.55);
+  }
+  if (!W) W = window.innerWidth;
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
   const ctx = canvas.getContext('2d');
