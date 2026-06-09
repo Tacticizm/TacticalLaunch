@@ -1468,7 +1468,7 @@ function _trajLoop(shot, start){
   _trajRAF = requestAnimationFrame(frame);
 }
 
-// 2-D side-view trajectory (left = tee, right = landing, up = height)
+// 3-D first-person perspective trajectory (camera behind the tee, looking downrange)
 function _trajDraw(shot, progress, postLand){
   const canvas = document.getElementById('trajCanvas');
   if (!canvas) return;
@@ -1480,74 +1480,136 @@ function _trajDraw(shot, progress, postLand){
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const carry   = shot.carry || 200;
-  const apexFt  = shot.apex != null ? shot.apex : carry * 0.45;
-  const apexYds = apexFt / 3;
+  const carry    = shot.carry  || 200;
+  const apexFt   = shot.apex   != null ? shot.apex   : carry * 0.45;
+  const apexYds  = apexFt / 3;
+  const curveYds = shot.curve  || 0;
 
-  // Layout padding
-  const padL = 32, padR = 32, padT = 40, padB = 52;
-  const plotW = W - padL - padR;
-  const plotH = H - padT - padB;
-  const gndY  = padT + plotH;
+  // ── Camera ────────────────────────────────────────────────────
+  const BEHIND = 3;        // yards behind tee
+  const EYE_Y  = 1.8;     // yards eye height
+  const FL     = W * 0.65; // focal length (pixels)
+  const HOR_Y  = H * 0.50; // horizon at 50%
 
-  // World → canvas
-  const xS = plotW / carry;
-  const yS = plotH / Math.max(apexYds, 1);
-  const cx = x => padL + x * xS;
-  const cy = y => gndY - y * yS;
-
-  // ── Background ──────────────────────────────────────────────────
-  ctx.clearRect(0, 0, W, H);
-  const sky = ctx.createLinearGradient(0, 0, 0, gndY);
-  sky.addColorStop(0, '#060812');
-  sky.addColorStop(1, '#0C1228');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, gndY);
-
-  const gnd = ctx.createLinearGradient(0, gndY, 0, H);
-  gnd.addColorStop(0, '#081510');
-  gnd.addColorStop(1, '#030808');
-  ctx.fillStyle = gnd; ctx.fillRect(0, gndY, W, H - gndY);
-
-  // Ground glow strip
-  const gl = ctx.createLinearGradient(0, gndY - 5, 0, gndY + 5);
-  gl.addColorStop(0, 'rgba(74,222,128,0)');
-  gl.addColorStop(0.5, 'rgba(74,222,128,0.14)');
-  gl.addColorStop(1, 'rgba(74,222,128,0)');
-  ctx.fillStyle = gl; ctx.fillRect(0, gndY - 5, W, 10);
-
-  // ── Yardage markers ──────────────────────────────────────────────
-  const step = carry <= 100 ? 25 : carry <= 200 ? 50 : 100;
-  ctx.font      = '8px "Roboto Mono",monospace';
-  ctx.textAlign = 'center';
-  for (let d = step; d <= carry; d += step){
-    const x = cx(d);
-    ctx.strokeStyle = 'rgba(74,222,128,0.18)';
-    ctx.lineWidth   = 0.7;
-    ctx.beginPath(); ctx.moveTo(x, gndY); ctx.lineTo(x, gndY + 5); ctx.stroke();
-    ctx.fillStyle = 'rgba(74,222,128,0.30)';
-    ctx.fillText(String(d), x, gndY + 16);
+  function proj(wx, wy, wz){
+    const dz = wz + BEHIND;
+    if (dz < 0.05) return null;
+    const s = FL / dz;
+    return { x: W/2 + wx*s, y: HOR_Y + (EYE_Y - wy)*s, s };
   }
-  ctx.fillStyle = 'rgba(74,222,128,0.20)';
-  ctx.fillText('0', cx(0), gndY + 16);
 
-  // ── Arc points ───────────────────────────────────────────────────
-  const STEPS = 120;
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Sky ──────────────────────────────────────────────────────
+  const sky = ctx.createLinearGradient(0, 0, 0, HOR_Y + 10);
+  sky.addColorStop(0, '#04050D');
+  sky.addColorStop(1, '#080F1E');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, HOR_Y + 2);
+
+  // ── Ground ───────────────────────────────────────────────────
+  const gnd = ctx.createLinearGradient(0, HOR_Y, 0, H);
+  gnd.addColorStop(0, '#061208');
+  gnd.addColorStop(1, '#020804');
+  ctx.fillStyle = gnd;
+  ctx.fillRect(0, HOR_Y, W, H - HOR_Y);
+
+  // ── Horizon glow ─────────────────────────────────────────────
+  const hgl = ctx.createLinearGradient(0, HOR_Y - 8, 0, HOR_Y + 8);
+  hgl.addColorStop(0,   'rgba(56,189,248,0)');
+  hgl.addColorStop(0.5, 'rgba(56,189,248,0.08)');
+  hgl.addColorStop(1,   'rgba(56,189,248,0)');
+  ctx.fillStyle = hgl;
+  ctx.fillRect(0, HOR_Y - 8, W, 16);
+
+  // ── Fairway grid ─────────────────────────────────────────────
+  const FW        = 8;   // half-width in yards
+  const step      = carry > 220 ? 50 : 25;
+  const laneStartZ = Math.max(0.5, (FW * 2 * FL / W) - BEHIND);
+  const laneXs    = [-FW, -FW*0.5, 0, FW*0.5, FW];
+  for (const lx of laneXs){
+    const p0 = proj(lx, 0, laneStartZ);
+    const p1 = proj(lx, 0, carry * 1.5);
+    if (!p0 || !p1) continue;
+    ctx.strokeStyle = lx === 0 ? 'rgba(56,189,248,0.09)' : 'rgba(74,222,128,0.055)';
+    ctx.lineWidth   = lx === 0 ? 0.8 : 0.5;
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  }
+  for (let d = step; d <= carry * 1.15; d += step){
+    const crossW = Math.min(FW, d * FW / (laneStartZ + BEHIND));
+    const pL = proj(-crossW, 0, d), pR = proj(crossW, 0, d);
+    if (!pL || !pR) continue;
+    const major = d % 100 === 0;
+    ctx.strokeStyle = `rgba(74,222,128,${major ? 0.11 : 0.055})`;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(pL.x, pL.y); ctx.lineTo(pR.x, pR.y); ctx.stroke();
+    if (major){
+      const pm = proj(0, 0, d);
+      if (pm){
+        const fs = Math.max(7, Math.min(12, pm.s * 5.5));
+        ctx.fillStyle = 'rgba(74,222,128,0.22)';
+        ctx.font      = `${fs}px "Roboto Mono",monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`${d}`, pm.x, pm.y - 3);
+      }
+    }
+  }
+
+  // ── Landing target ───────────────────────────────────────────
+  const lpj = proj(curveYds, 0, carry);
+  if (lpj){
+    const rx = 20 * lpj.s, ry = 6 * lpj.s;
+    const tg = ctx.createRadialGradient(lpj.x, lpj.y, 0, lpj.x, lpj.y, rx * 2.8);
+    tg.addColorStop(0, 'rgba(56,189,248,0.10)');
+    tg.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.fillStyle = tg;
+    ctx.beginPath();
+    ctx.ellipse(lpj.x, lpj.y, rx*2.8, ry*2.8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(56,189,248,0.20)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.ellipse(lpj.x, lpj.y, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // ── Arc points ───────────────────────────────────────────────
+  const STEPS = 100;
   const pts   = [];
   for (let i = 0; i <= STEPS; i++){
-    const t = i / STEPS;
-    pts.push({ x: cx(carry * t), y: cy(4 * apexYds * t * (1 - t)) });
+    const t  = i / STEPS;
+    const wx = curveYds * t * t;          // sidespin bends late
+    const wy = 4 * apexYds * t * (1 - t);
+    const wz = carry * t;
+    const p  = proj(wx, wy, wz);
+    if (p) pts.push({ ...p, t });
   }
   const maxI = Math.max(1, Math.round(progress * pts.length));
   const vis  = pts.slice(0, maxI);
 
   if (vis.length > 1){
-    // Outer glow
+    // Ground shadow (dashed)
+    ctx.save();
+    ctx.setLineDash([2, 7]);
+    ctx.lineWidth   = 0.7;
+    ctx.strokeStyle = 'rgba(56,189,248,0.11)';
+    ctx.beginPath();
+    let first = true;
+    for (let i = 0; i <= Math.round(progress * STEPS); i++){
+      const t = i / STEPS;
+      const p = proj(curveYds * t * t, 0, carry * t);
+      if (!p) continue;
+      first ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      first = false;
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // Glow layers
     for (let g = 3; g >= 0; g--){
       ctx.beginPath();
       ctx.moveTo(vis[0].x, vis[0].y);
       for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x, vis[i].y);
-      ctx.strokeStyle = `rgba(56,189,248,${0.04 + g * 0.03})`;
-      ctx.lineWidth   = 2 + g * 3.5;
+      ctx.strokeStyle = `rgba(56,189,248,${0.04 + g*0.035})`;
+      ctx.lineWidth   = 1.8 + g * 2.8;
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       ctx.stroke();
     }
@@ -1555,91 +1617,76 @@ function _trajDraw(shot, progress, postLand){
     ctx.beginPath();
     ctx.moveTo(vis[0].x, vis[0].y);
     for (let i = 1; i < vis.length; i++) ctx.lineTo(vis[i].x, vis[i].y);
-    ctx.strokeStyle = 'rgba(56,189,248,0.92)';
-    ctx.lineWidth   = 2;
+    ctx.strokeStyle = 'rgba(56,189,248,0.88)';
+    ctx.lineWidth   = 1.6;
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     ctx.stroke();
   }
 
-  // ── Apex marker ──────────────────────────────────────────────────
-  const fade = Math.min(1, Math.max(0, (progress - 0.44) / 0.12));
-  if (fade > 0 && apexFt > 0){
-    const ax = cx(carry * 0.5), ay = cy(apexYds);
-    // Dashed drop line
-    ctx.save();
-    ctx.setLineDash([2, 5]);
-    ctx.strokeStyle = `rgba(56,189,248,${0.20 * fade})`;
-    ctx.lineWidth = 0.8;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax, gndY); ctx.stroke();
-    ctx.restore();
-    // Halo
-    const gr = ctx.createRadialGradient(ax, ay, 0, ax, ay, 16);
-    gr.addColorStop(0, `rgba(56,189,248,${0.50 * fade})`);
+  // ── Apex marker ──────────────────────────────────────────────
+  (function(){
+    const aT  = 0.5;
+    const apj = proj(curveYds * aT * aT, apexYds, carry * aT);
+    if (!apj) return;
+    const fade = Math.min(1, Math.max(0, (progress - 0.44) / 0.10));
+    if (fade <= 0) return;
+    const gr = ctx.createRadialGradient(apj.x, apj.y, 0, apj.x, apj.y, 16);
+    gr.addColorStop(0, `rgba(56,189,248,${0.45 * fade})`);
     gr.addColorStop(1, 'rgba(56,189,248,0)');
     ctx.beginPath(); ctx.fillStyle = gr;
-    ctx.arc(ax, ay, 16, 0, Math.PI * 2); ctx.fill();
-    // Dot
+    ctx.arc(apj.x, apj.y, 16, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.fillStyle = `rgba(255,255,255,${0.95 * fade})`;
-    ctx.arc(ax, ay, 2.5, 0, Math.PI * 2); ctx.fill();
-    // Label
+    ctx.arc(apj.x, apj.y, 3, 0, Math.PI*2); ctx.fill();
     const lbl = shot.apex != null
       ? `${dispVal(shot.apex,'height')} ${unitLabel('height')}`
       : `~${Math.round(apexFt)} ${unitLabel('height')}`;
-    ctx.font = 'bold 9px "Roboto Mono",monospace';
+    ctx.font = 'bold 10px "Roboto Mono",monospace';
     ctx.textAlign = 'center';
-    ctx.fillStyle = `rgba(74,222,128,${0.88 * fade})`;
-    ctx.fillText(lbl, ax, ay - 12);
-  }
+    ctx.fillStyle = `rgba(74,222,128,${0.90 * fade})`;
+    ctx.fillText(lbl, apj.x, apj.y - 10);
+  })();
 
-  // ── Ball ─────────────────────────────────────────────────────────
+  // ── Ball ─────────────────────────────────────────────────────
   if (vis.length){
     const b  = vis[vis.length - 1];
-    const sz = 5.5;
-    const glw = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, sz * 6);
-    glw.addColorStop(0,    'rgba(255,255,255,0.55)');
-    glw.addColorStop(0.25, 'rgba(56,189,248,0.32)');
-    glw.addColorStop(1,    'rgba(56,189,248,0)');
+    const sz = Math.max(2.5, Math.min(12, b.s * 3.2));
+    const glw = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, sz * 7);
+    glw.addColorStop(0,   'rgba(255,255,255,0.50)');
+    glw.addColorStop(0.2, 'rgba(56,189,248,0.28)');
+    glw.addColorStop(1,   'rgba(56,189,248,0)');
     ctx.beginPath(); ctx.fillStyle = glw;
-    ctx.arc(b.x, b.y, sz * 6, 0, Math.PI * 2); ctx.fill();
+    ctx.arc(b.x, b.y, sz * 7, 0, Math.PI*2); ctx.fill();
     const bd = ctx.createRadialGradient(b.x - sz*0.3, b.y - sz*0.3, 0, b.x, b.y, sz);
-    bd.addColorStop(0, '#ffffff'); bd.addColorStop(1, '#b8ddf8');
+    bd.addColorStop(0, '#ffffff'); bd.addColorStop(1, '#c8e6f8');
     ctx.beginPath(); ctx.fillStyle = bd;
-    ctx.arc(b.x, b.y, sz, 0, Math.PI * 2); ctx.fill();
+    ctx.arc(b.x, b.y, Math.max(2, sz), 0, Math.PI*2); ctx.fill();
   }
 
-  // ── Impact rings + carry label ─────────────────────────────────
-  if (progress >= 1 && postLand > 0){
-    const lx = cx(carry);
+  // ── Impact rings + carry label ────────────────────────────────
+  if (progress >= 1 && lpj && postLand > 0){
     for (let r = 1; r <= 3; r++){
-      const rp = Math.min(1, Math.max(0, (postLand - (r-1)*200) / 700));
+      const rp = Math.min(1, Math.max(0, (postLand - (r-1)*200) / 750));
       if (rp <= 0) continue;
-      ctx.strokeStyle = `rgba(56,189,248,${(1-rp)*0.50})`;
+      ctx.strokeStyle = `rgba(56,189,248,${(1-rp)*0.55})`;
       ctx.lineWidth   = 1.4;
       ctx.beginPath();
-      ctx.ellipse(lx, gndY, Math.max(0.1, 22*r*rp), Math.max(0.1, 8*r*rp), 0, 0, Math.PI*2);
+      ctx.ellipse(lpj.x, lpj.y, Math.max(0.1, 24*r*lpj.s*rp), Math.max(0.1, 8*r*lpj.s*rp), 0, 0, Math.PI*2);
       ctx.stroke();
     }
     if (shot.carry != null){
-      ctx.font = 'bold 10px "Roboto Mono",monospace';
+      const fs = Math.max(9, Math.min(14, lpj.s * 6));
+      ctx.font = `bold ${fs}px "Roboto Mono",monospace`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(74,222,128,0.85)';
-      ctx.fillText(`${dispVal(shot.carry,'dist')} ${unitLabel('dist')}`, cx(carry), gndY - 16);
+      ctx.fillStyle = 'rgba(74,222,128,0.80)';
+      ctx.fillText(`${dispVal(shot.carry,'dist')} ${unitLabel('dist')}`, lpj.x, lpj.y - 14*lpj.s - 6);
     }
   }
 
-  // ── Tee dot ──────────────────────────────────────────────────────
-  ctx.fillStyle = (shot.lie || 'tee') === 'tee' ? '#3B82F6' : '#4ADE80';
-  ctx.beginPath(); ctx.arc(cx(0), gndY, 3.5, 0, Math.PI * 2); ctx.fill();
-
-  // ── Curve label (if any) ─────────────────────────────────────────
-  if (shot.curve && Math.abs(shot.curve) > 0.5){
-    const dir  = shot.curve < 0 ? '◀ LEFT' : 'RIGHT ▶';
-    const cAbs = dispVal(Math.abs(shot.curve), 'curve');
-    ctx.font      = '8px "Roboto Mono",monospace';
-    ctx.textAlign = shot.curve < 0 ? 'left' : 'right';
-    ctx.fillStyle = 'rgba(255,62,165,0.55)';
-    ctx.fillText(`${dir}  ${cAbs} ${unitLabel('curve')}`,
-      shot.curve < 0 ? padL : W - padR, H - 8);
+  // ── Tee dot ──────────────────────────────────────────────────
+  const tp = proj(0, 0, 0.2);
+  if (tp){
+    ctx.fillStyle = (shot.lie || 'tee') === 'tee' ? '#3B82F6' : '#4ADE80';
+    ctx.beginPath(); ctx.arc(tp.x, tp.y, 3.5, 0, Math.PI*2); ctx.fill();
   }
 }
 
